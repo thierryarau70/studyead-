@@ -1,0 +1,578 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// -------------------------------------------------------------
+// ENUMS
+// -------------------------------------------------------------
+
+enum UserRole {
+  admin
+  student
+  teacher
+  moderator
+  support
+  super_admin
+}
+
+enum CourseStatus {
+  draft
+  published
+  archived
+}
+
+enum LessonContentType {
+  video
+  pdf
+  file
+  link
+  embed
+}
+
+enum QuestionDifficulty {
+  easy
+  medium
+  hard
+}
+
+enum QuizShowAnswers {
+  submission
+  deadline
+  never
+}
+
+enum QuizAttemptStatus {
+  in_progress
+  completed
+  timed_out
+}
+
+enum EnrollmentStatus {
+  active
+  expired
+  cancelled
+  suspended
+}
+
+enum EnrollmentSource {
+  purchase
+  admin
+  coupon
+  courtesy
+  import
+}
+
+enum LessonProgressStatus {
+  not_started
+  in_progress
+  completed
+}
+
+enum OrderStatus {
+  pending
+  paid
+  failed
+  cancelled
+  refunded
+}
+
+enum PaymentStatus {
+  pending
+  approved
+  declined
+  refunded
+  chargeback
+}
+
+enum DiscountType {
+  percentage
+  fixed
+}
+
+// -------------------------------------------------------------
+// MODELS
+// -------------------------------------------------------------
+
+model Tenant {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(255)
+  slug      String   @unique @db.VarChar(100)
+  domain    String?  @unique @db.VarChar(255)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  settings       TenantSettings?
+  users          User[]
+  courses        Course[]
+  modules        CourseModule[]
+  lessons        Lesson[]
+  lessonContents LessonContent[]
+  questions      Question[]
+  quizzes        Quiz[]
+  enrollments    Enrollment[]
+  lessonProgress LessonProgress[]
+  orders         Order[]
+  payments       Payment[]
+  coupons        Coupon[]
+
+  @@map("tenants")
+}
+
+model TenantSettings {
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @unique @map("tenant_id") @db.Uuid
+  logoUrl              String?  @map("logo_url") @db.VarChar(500)
+  faviconUrl           String?  @map("favicon_url") @db.VarChar(500)
+  primaryColor         String   @default("#3B82F6") @map("primary_color") @db.VarChar(7)
+  secondaryColor       String   @default("#1E40AF") @map("secondary_color") @db.VarChar(7)
+  accentColor          String   @default("#F59E0B") @map("accent_color") @db.VarChar(7)
+  siteTitle            String   @default("Plataforma EAD") @map("site_title") @db.VarChar(255)
+  siteDescription      String?  @map("site_description") @db.Text
+  contactEmail         String?  @map("contact_email") @db.VarChar(255)
+  contactPhone         String?  @map("contact_phone") @db.VarChar(20)
+  socialLinks          Json     @default("{}") @map("social_links")
+  customCss            String?  @map("custom_css") @db.Text
+  paymentGateway       String   @default("stripe") @map("payment_gateway") @db.VarChar(50)
+  paymentGatewayConfig Json     @default("{}") @map("payment_gateway_config")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_settings")
+}
+
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  role            UserRole  @default(student)
+  name            String    @db.VarChar(255)
+  email           String    @db.VarChar(255)
+  passwordHash    String    @map("password_hash") @db.VarChar(255)
+  phone           String?   @db.VarChar(20)
+  avatarUrl       String?   @map("avatar_url") @db.VarChar(500)
+  isActive        Boolean   @default(true) @map("is_active")
+  emailVerifiedAt DateTime? @map("email_verified_at") @db.Timestamptz(6)
+  lastLoginAt     DateTime? @map("last_login_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  enrollments      Enrollment[]
+  orders           Order[]
+  lessonProgress   LessonProgress[]
+  questionAttempts QuestionAttempt[]
+  quizAttempts     QuizAttempt[]
+  createdQuestions Question[]        @relation("QuestionCreator")
+
+  @@unique([tenantId, email])
+  @@index([tenantId, role])
+  @@index([tenantId, isActive])
+  @@map("users")
+}
+
+model Course {
+  id                   String       @id @default(uuid()) @db.Uuid
+  tenantId             String       @map("tenant_id") @db.Uuid
+  title                String       @db.VarChar(255)
+  slug                 String       @db.VarChar(255)
+  description          String?      @db.Text
+  longDescription      String?      @map("long_description") @db.Text
+  thumbnailUrl         String?      @map("thumbnail_url") @db.VarChar(500)
+  priceCents           Int          @default(0) @map("price_cents")
+  originalPriceCents   Int?         @map("original_price_cents")
+  isPublished          Boolean      @default(false) @map("is_published")
+  isFree               Boolean      @default(false) @map("is_free")
+  status               CourseStatus @default(draft)
+  totalDurationMinutes Int          @default(0) @map("total_duration_minutes")
+  totalLessons         Int          @default(0) @map("total_lessons")
+  category             String?      @db.VarChar(100)
+  tags                 String[]     @default([])
+  sortOrder            Int          @default(0) @map("sort_order")
+  publishedAt          DateTime?    @map("published_at") @db.Timestamptz(6)
+  createdAt            DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  modules     CourseModule[]
+  enrollments Enrollment[]
+  orders      Order[]
+  quizzes     Quiz[]
+  coupons     Coupon[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, status])
+  @@index([tenantId, isPublished])
+  @@index([tenantId, category])
+  @@map("courses")
+}
+
+model CourseModule {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  courseId    String   @map("course_id") @db.Uuid
+  title       String   @db.VarChar(255)
+  description String?  @db.Text
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPublished Boolean  @default(false) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@index([courseId, sortOrder])
+  @@index([tenantId])
+  @@map("course_modules")
+}
+
+model Lesson {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  moduleId        String   @map("module_id") @db.Uuid
+  title           String   @db.VarChar(255)
+  slug            String   @db.VarChar(255)
+  description     String?  @db.Text
+  contentText     String?  @map("content_text") @db.Text
+  durationMinutes Int      @default(0) @map("duration_minutes")
+  sortOrder       Int      @default(0) @map("sort_order")
+  isPublished     Boolean  @default(false) @map("is_published")
+  isFreePreview   Boolean  @default(false) @map("is_free_preview")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  module    CourseModule     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  contents  LessonContent[]
+  questions LessonQuestion[]
+  progress  LessonProgress[]
+
+  @@unique([tenantId, slug])
+  @@index([moduleId, sortOrder])
+  @@map("lessons")
+}
+
+model LessonContent {
+  id              String            @id @default(uuid()) @db.Uuid
+  tenantId        String            @map("tenant_id") @db.Uuid
+  lessonId        String            @map("lesson_id") @db.Uuid
+  type            LessonContentType
+  title           String?           @db.VarChar(255)
+  url             String            @db.VarChar(1000)
+  provider        String?           @db.VarChar(50)
+  providerId      String?           @map("provider_id") @db.VarChar(255)
+  fileSizeBytes   BigInt?           @map("file_size_bytes")
+  mimeType        String?           @map("mime_type") @db.VarChar(100)
+  durationSeconds Int?              @map("duration_seconds")
+  sortOrder       Int               @default(0) @map("sort_order")
+  metadata        Json              @default("{}")
+  isDownloadable  Boolean           @default(false) @map("is_downloadable")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId, sortOrder])
+  @@index([lessonId, type])
+  @@map("lesson_contents")
+}
+
+model Question {
+  id                String             @id @default(uuid()) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  statement         String             @db.Text
+  statementImageUrl String?            @map("statement_image_url") @db.VarChar(500)
+  explanation       String?            @db.Text
+  subject           String             @db.VarChar(100)
+  topic             String?            @db.VarChar(100)
+  difficulty        QuestionDifficulty @default(medium)
+  tags              String[]           @default([])
+  isActive          Boolean            @default(true) @map("is_active")
+  createdBy         String?            @map("created_by") @db.Uuid
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  creator         User?             @relation("QuestionCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  options         QuestionOption[]
+  lessonQuestions LessonQuestion[]
+  quizQuestions   QuizQuestion[]
+  attempts        QuestionAttempt[]
+
+  @@index([tenantId, subject])
+  @@index([tenantId, topic])
+  @@index([tenantId, difficulty])
+  @@map("questions")
+}
+
+model QuestionOption {
+  id         String   @id @default(uuid()) @db.Uuid
+  questionId String   @map("question_id") @db.Uuid
+  label      String   @db.Char(1)
+  text       String   @db.Text
+  imageUrl   String?  @map("image_url") @db.VarChar(500)
+  isCorrect  Boolean  @default(false) @map("is_correct")
+  sortOrder  Int      @default(0) @map("sort_order")
+
+  question Question          @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  attempts QuestionAttempt[]
+
+  @@unique([questionId, label])
+  @@map("question_options")
+}
+
+model LessonQuestion {
+  id         String @id @default(uuid()) @db.Uuid
+  lessonId   String @map("lesson_id") @db.Uuid
+  questionId String @map("question_id") @db.Uuid
+  sortOrder  Int    @default(0) @map("sort_order")
+
+  lesson   Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, questionId])
+  @@map("lesson_questions")
+}
+
+model Quiz {
+  id               String          @id @default(uuid()) @db.Uuid
+  tenantId         String          @map("tenant_id") @db.Uuid
+  title            String          @db.VarChar(255)
+  description      String?         @db.Text
+  timeLimitMinutes Int?            @map("time_limit_minutes")
+  maxAttempts      Int             @default(1) @map("max_attempts")
+  questionCount    Int             @default(0) @map("question_count")
+  shuffleQuestions Boolean         @default(false) @map("shuffle_questions")
+  shuffleOptions   Boolean         @default(false) @map("shuffle_options")
+  showAnswersAfter QuizShowAnswers @default(submission) @map("show_answers_after")
+  startsAt         DateTime?       @map("starts_at") @db.Timestamptz(6)
+  endsAt           DateTime?       @map("ends_at") @db.Timestamptz(6)
+  isPublished      Boolean         @default(false) @map("is_published")
+  courseId         String?         @map("course_id") @db.Uuid
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  course        Course?        @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  quizQuestions QuizQuestion[]
+  quizAttempts  QuizAttempt[]
+
+  @@index([tenantId, isPublished])
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id         String  @id @default(uuid()) @db.Uuid
+  quizId     String  @map("quiz_id") @db.Uuid
+  questionId String  @map("question_id") @db.Uuid
+  sortOrder  Int     @default(0) @map("sort_order")
+  points     Decimal @default(1.0) @db.Decimal(5, 2)
+
+  quiz     Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, questionId])
+  @@map("quiz_questions")
+}
+
+model Enrollment {
+  id              String           @id @default(uuid()) @db.Uuid
+  tenantId        String           @map("tenant_id") @db.Uuid
+  userId          String           @map("user_id") @db.Uuid
+  courseId        String           @map("course_id") @db.Uuid
+  status          EnrollmentStatus @default(active)
+  source          EnrollmentSource
+  orderId         String?          @map("order_id") @db.Uuid
+  startsAt        DateTime         @default(now()) @map("starts_at") @db.Timestamptz(6)
+  expiresAt       DateTime?        @map("expires_at") @db.Timestamptz(6)
+  completedAt     DateTime?        @map("completed_at") @db.Timestamptz(6)
+  progressPercent Decimal          @default(0.00) @map("progress_percent") @db.Decimal(5, 2)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course         Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order          Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  lessonProgress LessonProgress[]
+
+  @@unique([userId, courseId])
+  @@index([tenantId, status])
+  @@index([userId, status])
+  @@index([courseId])
+  @@map("enrollments")
+}
+
+model LessonProgress {
+  id             String               @id @default(uuid()) @db.Uuid
+  tenantId       String               @map("tenant_id") @db.Uuid
+  userId         String               @map("user_id") @db.Uuid
+  lessonId       String               @map("lesson_id") @db.Uuid
+  enrollmentId   String               @map("enrollment_id") @db.Uuid
+  status         LessonProgressStatus @default(not_started)
+  watchedSeconds Int                  @default(0) @map("watched_seconds")
+  completedAt    DateTime?            @map("completed_at") @db.Timestamptz(6)
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson     Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([enrollmentId, status])
+  @@map("lesson_progress")
+}
+
+model QuestionAttempt {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  questionId       String   @map("question_id") @db.Uuid
+  quizAttemptId    String?  @map("quiz_attempt_id") @db.Uuid
+  selectedOptionId String?  @map("selected_option_id") @db.Uuid
+  isCorrect        Boolean? @map("is_correct")
+  answeredAt       DateTime @default(now()) @map("answered_at") @db.Timestamptz(6)
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question       Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  quizAttempt    QuizAttempt?    @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
+  selectedOption QuestionOption? @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, questionId])
+  @@index([quizAttemptId])
+  @@map("question_attempts")
+}
+
+model QuizAttempt {
+  id                String            @id @default(uuid()) @db.Uuid
+  tenantId          String            @map("tenant_id") @db.Uuid
+  userId            String            @map("user_id") @db.Uuid
+  quizId            String            @map("quiz_id") @db.Uuid
+  attemptNumber     Int               @map("attempt_number")
+  status            QuizAttemptStatus @default(in_progress)
+  score             Decimal?          @db.Decimal(5, 2)
+  correctCount      Int               @default(0) @map("correct_count")
+  incorrectCount    Int               @default(0) @map("incorrect_count")
+  unansweredCount   Int               @default(0) @map("unanswered_count")
+  totalQuestions    Int               @map("total_questions")
+  percentage        Decimal?          @db.Decimal(5, 2)
+  timeSpentSeconds  Int               @default(0) @map("time_spent_seconds")
+  startedAt         DateTime          @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt        DateTime?         @map("finished_at") @db.Timestamptz(6)
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz     Quiz              @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  attempts QuestionAttempt[]
+
+  @@unique([userId, quizId, attemptNumber])
+  @@index([quizId])
+  @@map("quiz_attempts")
+}
+
+model Order {
+  id                 String      @id @default(uuid()) @db.Uuid
+  tenantId           String      @map("tenant_id") @db.Uuid
+  userId             String      @map("user_id") @db.Uuid
+  courseId           String      @map("course_id") @db.Uuid
+  couponId           String?     @map("coupon_id") @db.Uuid
+  status             OrderStatus @default(pending)
+  amountCents        Int         @map("amount_cents")
+  discountCents      Int         @default(0) @map("discount_cents")
+  totalCents         Int         @map("total_cents")
+  currency           String      @default("BRL") @db.Char(3)
+  paymentMethod      String?     @map("payment_method") @db.VarChar(50)
+  gateway            String      @db.VarChar(50)
+  gatewayOrderId     String?     @map("gateway_order_id") @db.VarChar(255)
+  gatewayCheckoutUrl String?     @map("gateway_checkout_url") @db.VarChar(1000)
+  idempotencyKey     String      @unique @map("idempotency_key") @db.VarChar(255)
+  metadata           Json        @default("{}")
+  paidAt             DateTime?   @map("paid_at") @db.Timestamptz(6)
+  refundedAt         DateTime?   @map("refunded_at") @db.Timestamptz(6)
+  expiresAt          DateTime?   @map("expires_at") @db.Timestamptz(6)
+  createdAt          DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  coupon      Coupon?      @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  payments    Payment[]
+  enrollments Enrollment[]
+
+  @@index([tenantId, status])
+  @@index([userId])
+  @@index([gatewayOrderId])
+  @@map("orders")
+}
+
+model Payment {
+  id               String        @id @default(uuid()) @db.Uuid
+  tenantId         String        @map("tenant_id") @db.Uuid
+  orderId          String        @map("order_id") @db.Uuid
+  gateway          String        @db.VarChar(50)
+  gatewayPaymentId String        @map("gateway_payment_id") @db.VarChar(255)
+  status           PaymentStatus
+  amountCents      Int           @map("amount_cents")
+  currency         String        @default("BRL") @db.Char(3)
+  paymentMethod    String?       @map("payment_method") @db.VarChar(50)
+  rawResponse      Json          @default("{}") @map("raw_response")
+  processedAt      DateTime?     @map("processed_at") @db.Timestamptz(6)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model Coupon {
+  id             String       @id @default(uuid()) @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  code           String       @db.VarChar(50)
+  description    String?      @db.VarChar(255)
+  discountType   DiscountType @map("discount_type")
+  discountValue  Decimal      @map("discount_value") @db.Decimal(10, 2)
+  maxUses        Int?         @map("max_uses")
+  currentUses    Int          @default(0) @map("current_uses")
+  minAmountCents Int          @default(0) @map("min_amount_cents")
+  courseId       String?      @map("course_id") @db.Uuid
+  isActive       Boolean      @default(true) @map("is_active")
+  startsAt       DateTime?    @map("starts_at") @db.Timestamptz(6)
+  expiresAt      DateTime?    @map("expires_at") @db.Timestamptz(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  course Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  orders Order[]
+
+  @@unique([tenantId, code])
+  @@map("coupons")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  action     String   @db.VarChar(100)
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   String   @map("entity_id") @db.Uuid
+  oldValues  Json?    @map("old_values")
+  newValues  Json?    @map("new_values")
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
