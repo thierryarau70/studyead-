@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: studyead-api
+    name: studyead
     runtime: node
     plan: free
     region: oregon
