@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: npm install && npm run build --workspace=@studyead/shared-types && npm run build --workspace=@studyead/validators && npx prisma generate --schema=apps/api/src/database/prisma/schema.prisma && npm run build --workspace=@studyead/api
+    buildCommand: npm install --include=dev && npm run build --workspace=@studyead/shared-types && npm run build --workspace=@studyead/validators && npx prisma generate --schema=apps/api/src/database/prisma/schema.prisma && npm run build --workspace=@studyead/api
     startCommand: node apps/api/dist/main.js
     healthCheckPath: /api/v1/health
     envVars:
