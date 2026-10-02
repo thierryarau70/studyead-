@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: studyead-api
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build --workspace=@studyead/shared-types && npm run build --workspace=@studyead/validators && npx prisma generate --schema=apps/api/src/database/prisma/schema.prisma && npm run build --workspace=@studyead/api
+    startCommand: node apps/api/dist/main.js
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: DEFAULT_TENANT_ID
+        value: 00000000-0000-0000-0000-000000000001
+      - key: CORS_ORIGIN
+        sync: false

@@ -5,12 +5,18 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaService } from './database/prisma.service';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { CoursesModule } from './modules/courses/courses.module';
+import { QuestionsModule } from './modules/questions/questions.module';
+import { QuizzesModule } from './modules/quizzes/quizzes.module';
+import { UsersModule } from './modules/users/users.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { AppController } from './app.controller';
 
 @Module({
+  controllers: [AppController],
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
@@ -24,6 +30,10 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     ]),
     HealthModule,
     AuthModule,
+    CoursesModule,
+    QuestionsModule,
+    QuizzesModule,
+    UsersModule,
   ],
   providers: [
     PrismaService,

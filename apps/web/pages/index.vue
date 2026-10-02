@@ -32,7 +32,7 @@
               </NuxtLink>
 
               <NuxtLink
-                to="/courses"
+                to="/student/courses"
                 class="px-8 py-4 rounded-xl bg-white hover:bg-surface-50 text-surface-800 font-semibold text-base border border-surface-200 shadow-sm transition-all duration-200 text-center flex items-center justify-center gap-2"
               >
                 <i class="pi pi-compass text-brand-600"></i>

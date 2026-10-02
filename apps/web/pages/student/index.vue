@@ -1,7 +1,8 @@
 <template>
-  <div class="space-y-8 max-w-7xl mx-auto">
+  <div class="space-y-8 max-w-7xl mx-auto pb-16">
     <!-- Header banner -->
-    <div class="p-8 rounded-2xl bg-gradient-to-r from-brand-700 via-brand-600 to-indigo-700 text-white shadow-lg relative overflow-hidden">
+    <div class="p-8 rounded-3xl bg-gradient-to-r from-brand-700 via-brand-600 to-indigo-700 text-white shadow-xl relative overflow-hidden">
+      <div class="absolute -right-10 -bottom-10 w-80 h-80 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
       <div class="relative z-10 max-w-2xl space-y-2">
         <span class="inline-block px-2.5 py-0.5 rounded-md bg-white/20 text-xs font-semibold backdrop-blur-sm">
           Painel de Estudos
@@ -10,50 +11,50 @@
           Pronto para continuar os estudos, {{ authStore.user?.name?.split(' ')[0] || 'Aluno' }}?
         </h1>
         <p class="text-brand-100 text-sm">
-          Você completou 14 aulas nesta semana. Mantenha o ritmo para alcançar sua meta de aprovação.
+          Acompanhe seus cursos, faça simulados cronometrados e pratique questões comentadas todos os dias.
         </p>
       </div>
     </div>
 
     <!-- Quick Stats Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-      <div class="p-5 rounded-2xl bg-white border border-surface-200 shadow-sm flex items-center gap-4">
+      <div class="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
         <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl flex-shrink-0">
           <i class="pi pi-book"></i>
         </div>
         <div>
-          <p class="text-xs font-medium text-surface-500">Cursos Ativos</p>
-          <p class="text-2xl font-bold text-surface-900">2</p>
+          <p class="text-xs font-semibold text-slate-500">Cursos Disponíveis</p>
+          <p class="text-2xl font-black text-slate-900">{{ coursesStore.publishedCourses.length }}</p>
         </div>
       </div>
 
-      <div class="p-5 rounded-2xl bg-white border border-surface-200 shadow-sm flex items-center gap-4">
-        <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl flex-shrink-0">
-          <i class="pi pi-video"></i>
+      <div class="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl flex-shrink-0">
+          <i class="pi pi-clock"></i>
         </div>
         <div>
-          <p class="text-xs font-medium text-surface-500">Aulas Assistidas</p>
-          <p class="text-2xl font-bold text-surface-900">28 / 64</p>
+          <p class="text-xs font-semibold text-slate-500">Simulados Oficiais</p>
+          <p class="text-2xl font-black text-slate-900">{{ quizzesStore.publishedQuizzes.length }}</p>
         </div>
       </div>
 
-      <div class="p-5 rounded-2xl bg-white border border-surface-200 shadow-sm flex items-center gap-4">
+      <div class="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
         <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl flex-shrink-0">
           <i class="pi pi-check-circle"></i>
         </div>
         <div>
-          <p class="text-xs font-medium text-surface-500">Questões Respondidas</p>
-          <p class="text-2xl font-bold text-surface-900">142</p>
+          <p class="text-xs font-semibold text-slate-500">Banco de Questões</p>
+          <p class="text-2xl font-black text-slate-900">{{ questionsStore.questions.length }}</p>
         </div>
       </div>
 
-      <div class="p-5 rounded-2xl bg-white border border-surface-200 shadow-sm flex items-center gap-4">
+      <div class="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
         <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl flex-shrink-0">
-          <i class="pi pi-chart-pie"></i>
+          <i class="pi pi-video"></i>
         </div>
         <div>
-          <p class="text-xs font-medium text-surface-500">Taxa de Acertos</p>
-          <p class="text-2xl font-bold text-emerald-600">82.5%</p>
+          <p class="text-xs font-semibold text-slate-500">Aulas no Catálogo</p>
+          <p class="text-2xl font-black text-brand-600">{{ totalLessonsCount }}</p>
         </div>
       </div>
     </div>
@@ -61,82 +62,91 @@
     <!-- Active Courses Section -->
     <div class="space-y-4">
       <div class="flex items-center justify-between">
-        <h2 class="text-lg font-bold text-surface-900 flex items-center gap-2">
+        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
           <i class="pi pi-bookmark text-brand-600"></i>
-          Meus Cursos em Andamento
+          Cursos em Destaque
         </h2>
-        <NuxtLink to="/student/courses" class="text-xs font-semibold text-brand-600 hover:text-brand-700">
-          Ver todos os cursos →
+        <NuxtLink to="/student/courses" class="text-xs font-bold text-brand-600 hover:text-brand-700">
+          Ver catálogo completo →
         </NuxtLink>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Sample Course Card 1 -->
-        <div class="p-6 rounded-2xl bg-white border border-surface-200 shadow-sm hover:shadow-md transition-shadow space-y-4">
-          <div class="flex items-start justify-between">
-            <div>
-              <span class="px-2.5 py-0.5 rounded text-[11px] font-semibold bg-brand-50 text-brand-700 border border-brand-200">
-                Extensivo ENEM
+      <div v-if="coursesStore.publishedCourses.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div
+          v-for="course in coursesStore.publishedCourses.slice(0, 4)"
+          :key="course.id"
+          class="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between space-y-4"
+        >
+          <div class="space-y-3">
+            <div class="flex items-start justify-between">
+              <span class="px-2.5 py-0.5 rounded text-[11px] font-bold bg-brand-50 text-brand-700 border border-brand-200">
+                {{ course.category }}
               </span>
-              <h3 class="text-base font-bold text-surface-900 mt-2">
-                Preparatório ENEM & Vestibulares Medicina
-              </h3>
+              <span class="text-xs font-bold text-slate-500 flex items-center gap-1">
+                <i class="pi pi-clock text-[10px]"></i> {{ course.totalDurationMinutes }} min
+              </span>
             </div>
-            <span class="text-xs font-bold text-brand-600">43%</span>
+            <h3 class="text-base font-extrabold text-slate-900 line-clamp-1">
+              {{ course.title }}
+            </h3>
+            <p class="text-xs text-slate-500 line-clamp-2">
+              {{ course.description }}
+            </p>
           </div>
 
-          <!-- Progress bar -->
-          <div class="space-y-1.5">
-            <div class="w-full h-2 bg-surface-100 rounded-full overflow-hidden">
-              <div class="h-full bg-brand-600 rounded-full w-[43%]"></div>
-            </div>
-            <p class="text-[11px] text-surface-500">22 de 51 aulas completadas</p>
-          </div>
-
-          <div class="pt-2 flex items-center justify-between border-t border-surface-100">
-            <span class="text-xs text-surface-500">Última aula: Física Quântica Básica</span>
+          <div class="pt-3 flex items-center justify-between border-t border-slate-100">
+            <span class="text-xs font-semibold text-slate-500">
+              <i class="pi pi-play-circle text-brand-500 mr-1"></i>
+              {{ course.totalLessons }} aulas disponíveis
+            </span>
             <NuxtLink
-              to="/student/courses/enem"
-              class="px-3.5 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold transition-colors flex items-center gap-1.5"
+              :to="`/student/courses/${course.slug}`"
+              class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-md shadow-brand-500/20"
             >
-              Continuar
-              <i class="pi pi-play text-[10px]"></i>
+              Acessar
+              <i class="pi pi-arrow-right text-[10px]"></i>
             </NuxtLink>
           </div>
         </div>
+      </div>
 
-        <!-- Sample Course Card 2 -->
-        <div class="p-6 rounded-2xl bg-white border border-surface-200 shadow-sm hover:shadow-md transition-shadow space-y-4">
-          <div class="flex items-start justify-between">
-            <div>
-              <span class="px-2.5 py-0.5 rounded text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
-                Redação
-              </span>
-              <h3 class="text-base font-bold text-surface-900 mt-2">
-                Laboratório de Redação Nota 1000
-              </h3>
-            </div>
-            <span class="text-xs font-bold text-purple-600">75%</span>
-          </div>
+      <div v-else class="text-center py-12 bg-white rounded-3xl border border-slate-200">
+        <i class="pi pi-book text-4xl text-slate-200"></i>
+        <p class="mt-2 text-slate-400 font-semibold text-sm">Nenhum curso disponível no momento</p>
+      </div>
+    </div>
 
-          <!-- Progress bar -->
-          <div class="space-y-1.5">
-            <div class="w-full h-2 bg-surface-100 rounded-full overflow-hidden">
-              <div class="h-full bg-purple-600 rounded-full w-[75%]"></div>
-            </div>
-            <p class="text-[11px] text-surface-500">12 de 16 aulas completadas</p>
-          </div>
-
-          <div class="pt-2 flex items-center justify-between border-t border-surface-100">
-            <span class="text-xs text-surface-500">Última aula: Estrutura da Proposta de Intervenção</span>
-            <NuxtLink
-              to="/student/courses/redacao"
-              class="px-3.5 py-1.5 rounded-lg bg-surface-900 hover:bg-surface-800 text-white text-xs font-semibold transition-colors flex items-center gap-1.5"
-            >
-              Continuar
-              <i class="pi pi-play text-[10px]"></i>
+    <!-- Quick Shortcuts to Quizzes and Questions -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="p-6 rounded-3xl bg-gradient-to-br from-slate-900 to-indigo-950 text-white shadow-xl flex items-center justify-between">
+        <div class="space-y-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-purple-300">Treinamento Oficial</span>
+          <h3 class="text-lg font-black">Simulados Cronometrados</h3>
+          <p class="text-xs text-slate-300 max-w-sm">Treine com tempo real do exame e receba nota e análise de desempenho.</p>
+          <div class="pt-2">
+            <NuxtLink to="/student/quizzes" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-colors">
+              Ir para Simulados <i class="pi pi-arrow-right text-[10px]"></i>
             </NuxtLink>
           </div>
+        </div>
+        <div class="hidden sm:flex w-20 h-20 rounded-2xl bg-white/10 items-center justify-center text-4xl text-purple-300">
+          <i class="pi pi-clock"></i>
+        </div>
+      </div>
+
+      <div class="p-6 rounded-3xl bg-gradient-to-br from-slate-900 to-brand-950 text-white shadow-xl flex items-center justify-between">
+        <div class="space-y-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-brand-300">Prática Diária</span>
+          <h3 class="text-lg font-black">Banco de Questões</h3>
+          <p class="text-xs text-slate-300 max-w-sm">Resolva questões comentadas pelos professores com gabarito instantâneo.</p>
+          <div class="pt-2">
+            <NuxtLink to="/student/questions" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-colors">
+              Praticar Questões <i class="pi pi-arrow-right text-[10px]"></i>
+            </NuxtLink>
+          </div>
+        </div>
+        <div class="hidden sm:flex w-20 h-20 rounded-2xl bg-white/10 items-center justify-center text-4xl text-brand-300">
+          <i class="pi pi-check-square"></i>
         </div>
       </div>
     </div>
@@ -144,15 +154,27 @@
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted } from 'vue';
 import { useAuthStore } from '~/stores/auth';
+import { useCoursesStore } from '~/stores/courses';
+import { useQuizzesStore } from '~/stores/quizzes';
+import { useQuestionsStore } from '~/stores/questions';
 
-definePageMeta({
-  layout: 'student',
-});
-
-useHead({
-  title: 'Dashboard do Aluno — Cursinho Alpha',
-});
+definePageMeta({ layout: 'student' });
+useHead({ title: 'Dashboard do Aluno — StudyEAD' });
 
 const authStore = useAuthStore();
+const coursesStore = useCoursesStore();
+const quizzesStore = useQuizzesStore();
+const questionsStore = useQuestionsStore();
+
+onMounted(() => {
+  coursesStore.fetchCourses();
+  quizzesStore.fetchQuizzes();
+  questionsStore.fetchQuestions();
+});
+
+const totalLessonsCount = computed(() =>
+  coursesStore.publishedCourses.reduce((sum, c) => sum + c.totalLessons, 0),
+);
 </script>

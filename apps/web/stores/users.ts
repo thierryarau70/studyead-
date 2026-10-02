@@ -1,0 +1,226 @@
+/**
+ * Store de Usuários/Alunos (Admin).
+ * Admin ativa/desativa e gerencia funções com persistência no LocalStorage.
+ */
+import { defineStore } from 'pinia';
+import { ref, computed, watch } from 'vue';
+
+export type UserRole = 'admin' | 'student' | 'teacher' | 'moderator';
+
+export interface PlatformUser {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: UserRole;
+  isActive: boolean;
+  createdAt: string;
+  lastLoginAt?: string;
+  enrollmentsCount: number;
+}
+
+const STORAGE_KEY = 'studyead_users';
+
+const seedUsers: PlatformUser[] = [
+  { id: 'u-1', name: 'Administradora Alpha', email: 'admin@cursinhoalpha.com.br', role: 'admin', isActive: true, createdAt: '2026-01-01', lastLoginAt: '2026-10-01', enrollmentsCount: 0 },
+  { id: 'u-2', name: 'Aluno Teste', email: 'aluno@cursinhoalpha.com.br', role: 'student', isActive: true, createdAt: '2026-02-15', lastLoginAt: '2026-09-30', enrollmentsCount: 2 },
+  { id: 'u-3', name: 'Prof. Carlos Eduardo', email: 'carlos.fisica@cursinhoalpha.com.br', role: 'teacher', isActive: true, createdAt: '2026-01-10', lastLoginAt: '2026-09-28', enrollmentsCount: 0 },
+  { id: 'u-4', name: 'Mariana Silva Costa', email: 'mariana.costa@gmail.com', role: 'student', isActive: true, createdAt: '2026-03-22', lastLoginAt: '2026-09-29', enrollmentsCount: 1 },
+  { id: 'u-5', name: 'Rafael Alves Santos', email: 'rafael.alves@gmail.com', role: 'student', isActive: false, createdAt: '2026-04-10', enrollmentsCount: 1 },
+];
+
+function loadInitialUsers(): PlatformUser[] {
+  if (process.client) {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao ler usuários do localStorage:', e);
+    }
+  }
+  return seedUsers;
+}
+
+export const useUsersStore = defineStore('users', () => {
+  const users = ref<PlatformUser[]>(loadInitialUsers());
+
+  if (process.client) {
+    watch(
+      users,
+      (newVal) => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
+        } catch (e) {
+          console.error('Erro ao salvar usuários no localStorage:', e);
+        }
+      },
+      { deep: true }
+    );
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        try {
+          users.value = JSON.parse(e.newValue);
+        } catch {}
+      }
+    });
+  }
+
+  const loading = ref(false);
+  const error = ref('');
+
+  const activeUsers = computed(() => users.value.filter((u) => u.isActive));
+  const students = computed(() => users.value.filter((u) => u.role === 'student'));
+  const totalActive = computed(() => activeUsers.value.length);
+
+
+  async function fetchUsers() {
+    loading.value = true;
+    error.value = '';
+    try {
+      if (process.client) {
+        const { $api } = useNuxtApp();
+        const res: any = await $api('/users?limit=100');
+        const items = res?.data || res?.items;
+        if (Array.isArray(items) && items.length > 0) {
+          for (const item of items) {
+            const existingIdx = users.value.findIndex((u) => u.id === item.id || u.email === item.email);
+            const formattedUser: PlatformUser = {
+              id: item.id,
+              name: item.name,
+              email: item.email,
+              phone: item.phone,
+              role: item.role as UserRole,
+              isActive: Boolean(item.isActive),
+              createdAt: item.createdAt ? item.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+              lastLoginAt: item.lastLoginAt ? item.lastLoginAt.split('T')[0] : undefined,
+              enrollmentsCount: item.enrollmentsCount || 0,
+            };
+            if (existingIdx !== -1) {
+              users.value[existingIdx] = { ...users.value[existingIdx], ...formattedUser };
+            } else {
+              users.value.push(formattedUser);
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn('API GET /users indisponível, usando cache persistente:', err?.message);
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  function getById(id: string) {
+    return users.value.find((u) => u.id === id);
+  }
+
+  async function createUser(data: Omit<PlatformUser, 'id' | 'createdAt' | 'enrollmentsCount'>) {
+    const tempId = `u-${Date.now()}`;
+    const newUser: PlatformUser = {
+      ...data,
+      id: tempId,
+      createdAt: new Date().toISOString().split('T')[0],
+      enrollmentsCount: 0,
+    };
+    users.value.unshift(newUser);
+
+    if (process.client) {
+      try {
+        const { $api } = useNuxtApp();
+        const res: any = await $api('/users', {
+          method: 'POST',
+          body: {
+            name: data.name,
+            email: data.email,
+            role: data.role,
+            phone: data.phone,
+            isActive: Boolean(data.isActive),
+          },
+        });
+        const createdId = res?.data?.id || res?.id;
+        if (createdId) {
+          newUser.id = createdId;
+        }
+      } catch (err: any) {
+        console.warn('API POST /users fallback local:', err?.message);
+      }
+    }
+    return newUser.id;
+  }
+
+  async function updateUser(id: string, patch: Partial<PlatformUser>) {
+    const user = users.value.find((u) => u.id === id);
+    if (user) {
+      Object.assign(user, patch);
+    }
+
+    if (process.client) {
+      try {
+        const { $api } = useNuxtApp();
+        await $api(`/users/${id}`, {
+          method: 'PUT',
+          body: patch,
+        });
+      } catch (err: any) {
+        console.warn(`API PUT /users/${id} fallback local:`, err?.message);
+      }
+    }
+  }
+
+  async function toggleActive(id: string) {
+    const user = users.value.find((u) => u.id === id);
+    if (user) {
+      const nextActive = !user.isActive;
+      await updateUser(id, { isActive: nextActive });
+    }
+  }
+
+  async function changeRole(id: string, role: UserRole) {
+    await updateUser(id, { role });
+  }
+
+  async function deleteUser(id: string) {
+    users.value = users.value.filter((u) => u.id !== id);
+
+    if (process.client) {
+      try {
+        const { $api } = useNuxtApp();
+        await $api(`/users/${id}`, {
+          method: 'DELETE',
+        });
+      } catch (err: any) {
+        console.warn(`API DELETE /users/${id} fallback local:`, err?.message);
+      }
+    }
+  }
+
+  function resetToDefault() {
+    users.value = [...seedUsers];
+    if (process.client) {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }
+
+  return {
+    users,
+    loading,
+    error,
+    activeUsers,
+    students,
+    totalActive,
+    fetchUsers,
+    getById,
+    createUser,
+    updateUser,
+    toggleActive,
+    changeRole,
+    deleteUser,
+    resetToDefault,
+  };
+});

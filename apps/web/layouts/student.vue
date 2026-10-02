@@ -97,7 +97,7 @@
         </div>
         <div class="flex items-center gap-4">
           <NuxtLink
-            to="/courses"
+            to="/student/courses"
             class="text-xs font-medium text-surface-600 hover:text-brand-600 flex items-center gap-1.5 transition-colors"
           >
             <i class="pi pi-search text-xs"></i>

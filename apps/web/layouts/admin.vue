@@ -61,9 +61,9 @@
           Alunos & Vendas
         </div>
         <NuxtLink
-          to="/admin/students"
+          to="/admin/users"
           class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors"
-          :class="$route.path.startsWith('/admin/students') ? 'bg-brand-600 text-white font-semibold' : 'text-surface-300 hover:bg-surface-800 hover:text-white'"
+          :class="$route.path.startsWith('/admin/users') ? 'bg-brand-600 text-white font-semibold' : 'text-surface-300 hover:bg-surface-800 hover:text-white'"
         >
           <i class="pi pi-users text-base"></i>
           Alunos & Matrículas

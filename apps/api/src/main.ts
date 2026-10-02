@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import helmet from 'helmet';
-import compression from 'compression';
+import * as compression from 'compression';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -10,11 +10,14 @@ async function bootstrap() {
 
   // Security middlewares
   app.use(helmet());
-  app.use(compression());
+  const compressionFn = typeof compression === 'function' ? compression : (compression as any).default;
+  if (typeof compressionFn === 'function') {
+    app.use(compressionFn());
+  }
 
   // CORS
   const allowedOrigins = process.env.CORS_ORIGIN
-    ? process.env.CORS_ORIGIN.split(',')
+    ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
     : ['http://localhost:3000', 'http://127.0.0.1:3000'];
 
   app.enableCors({
@@ -35,7 +38,7 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
 
   const port = process.env.PORT || 3001;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
   logger.log(`🚀 StudyEAD API running at: http://localhost:${port}/api/v1`);
   logger.log(`🩺 Health check at: http://localhost:${port}/api/v1/health`);

@@ -161,7 +161,7 @@ export const answerQuestionSchema = z.object({
 export const createQuizSchema = z.object({
   title: z.string().min(3).max(255),
   description: z.string().optional().nullable(),
-  timeLimitMinutes: z.number().int().min(1).optional().nullable(),
+  timeLimitMinutes: z.number().int().min(1).default(60),
   maxAttempts: z.number().int().min(0).default(1),
   shuffleQuestions: z.boolean().default(false),
   shuffleOptions: z.boolean().default(false),
@@ -169,7 +169,7 @@ export const createQuizSchema = z.object({
   startsAt: z.string().datetime().optional().nullable(),
   endsAt: z.string().datetime().optional().nullable(),
   courseId: z.string().uuid().optional().nullable(),
-  questionIds: z.array(z.string().uuid()).min(1, 'O simulado deve ter pelo menos 1 questão'),
+  questionIds: z.array(z.string()).default([]),
 });
 
 export const updateQuizSchema = createQuizSchema.partial();
@@ -205,6 +205,7 @@ export type CreateCourseInput = z.infer<typeof createCourseSchema>;
 export type UpdateCourseInput = z.infer<typeof updateCourseSchema>;
 export type CreateModuleInput = z.infer<typeof createModuleSchema>;
 export type CreateLessonInput = z.infer<typeof createLessonSchema>;
+export type CreateLessonContentInput = z.infer<typeof createLessonContentSchema>;
 export type CreateQuestionInput = z.infer<typeof createQuestionSchema>;
 export type CreateQuizInput = z.infer<typeof createQuizSchema>;
 export type UpdateLessonProgressInput = z.infer<typeof updateLessonProgressSchema>;
