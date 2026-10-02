@@ -18,16 +18,27 @@ async function bootstrap() {
   // CORS
   const allowedOrigins = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
-    : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+    : [];
+
+  // Patterns always allowed: localhost, vercel.app subdomains, onrender.com subdomains
+  const allowedPatterns = [
+    /^http:\/\/localhost(:\d+)?$/,
+    /^http:\/\/127\.0\.0\.1(:\d+)?$/,
+    /^https:\/\/[\w-]+\.vercel\.app$/,
+    /^https:\/\/[\w-]+\.onrender\.com$/,
+  ];
 
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, postman)
-      if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
-        callback(null, true);
-      } else {
-        callback(new Error('Origem não permitida por CORS'));
-      }
+      // Allow requests with no origin (curl, Postman, mobile apps)
+      if (!origin) return callback(null, true);
+      // Allow explicitly listed origins
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // Allow pattern-matched origins
+      if (allowedPatterns.some((re) => re.test(origin))) return callback(null, true);
+      // Allow all in non-production
+      if (process.env.NODE_ENV !== 'production') return callback(null, true);
+      callback(new Error('Origem não permitida por CORS'));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
