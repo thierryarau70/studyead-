@@ -20,6 +20,10 @@ export default defineNuxtConfig({
     },
   },
 
+  nitro: {
+    preset: process.env.VERCEL ? 'vercel' : 'node-server',
+  },
+
   app: {
     head: {
       title: 'Plataforma EAD — Cursinho Preparatório',
