@@ -183,7 +183,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useCoursesStore } from '~/stores/courses';
+import { useCoursesStore, getCanonicalCourseKey } from '~/stores/courses';
 import { useAuthStore } from '~/stores/auth';
 
 definePageMeta({ layout: 'student' });
@@ -207,11 +207,15 @@ const canAccess = computed(() => {
   if (authStore.user?.email === 'aluno@cursinhoalpha.com.br') return true;
   const enrolled = authStore.enrolledCourseIds;
   if (!Array.isArray(enrolled) || enrolled.length === 0) return true;
-  return (
-    enrolled.includes(course.value.id) ||
-    enrolled.includes(course.value.slug) ||
-    enrolled.includes(course.value.slug?.replace(/-completo$/, ''))
-  );
+  const targetCanon = getCanonicalCourseKey(course.value);
+  return enrolled.some((rawId) => {
+    if (rawId === course.value?.id || rawId === course.value?.slug) return true;
+    if (rawId === 'course-1' || rawId === 'c-1') return targetCanon === 'canonical-enem';
+    if (rawId === 'course-2' || rawId === 'c-2') return targetCanon === 'canonical-redacao';
+    if (rawId === 'course-3' || rawId === 'c-3') return targetCanon === 'canonical-medicina';
+    const c = coursesStore.getCourseById(rawId);
+    return c && getCanonicalCourseKey(c) === targetCanon;
+  });
 });
 
 function getCoordinationWhatsAppLink(courseTitle: string) {

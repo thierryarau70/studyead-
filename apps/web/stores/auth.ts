@@ -27,7 +27,28 @@ export const useAuthStore = defineStore('auth', {
       state.user?.role === UserRole.ADMIN ||
       state.user?.role === UserRole.SUPER_ADMIN ||
       (state.user?.role as any) === 'teacher',
-    enrolledCourseIds: (state) => state.user?.enrolledCourseIds || [],
+    enrolledCourseIds: (state) => {
+      if (state.user?.enrolledCourseIds && state.user.enrolledCourseIds.length > 0) {
+        return state.user.enrolledCourseIds;
+      }
+      if (process.client && state.user) {
+        try {
+          const raw = localStorage.getItem('studyead_users');
+          if (raw) {
+            const users = JSON.parse(raw);
+            const found = users.find(
+              (u: any) =>
+                u.id === state.user?.id ||
+                (u.email && state.user?.email && u.email.toLowerCase() === state.user.email.toLowerCase())
+            );
+            if (found && Array.isArray(found.enrolledCourseIds) && found.enrolledCourseIds.length > 0) {
+              return found.enrolledCourseIds;
+            }
+          }
+        } catch {}
+      }
+      return [];
+    },
   },
 
   actions: {

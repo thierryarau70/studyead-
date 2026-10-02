@@ -200,7 +200,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useCoursesStore } from '~/stores/courses';
+import { useCoursesStore, deduplicateCourses, getCanonicalCourseKey } from '~/stores/courses';
 import { useAuthStore } from '~/stores/auth';
 
 definePageMeta({ layout: 'student' });
@@ -221,30 +221,37 @@ onMounted(() => {
   authStore.fetchMe();
 });
 
+const published = computed(() => deduplicateCourses(coursesStore.publishedCourses));
+
 const isEnrolled = (courseId: string) => {
   if (authStore.canAccessAllCourses) return true;
   if (authStore.user?.email === 'aluno@cursinhoalpha.com.br') return true;
   const enrolled = authStore.enrolledCourseIds;
   if (!Array.isArray(enrolled) || enrolled.length === 0) return true;
-  const c = coursesStore.getCourseById(courseId);
-  return (
-    enrolled.includes(courseId) ||
-    (c && (enrolled.includes(c.slug) || enrolled.includes(c.slug?.replace(/-completo$/, ''))))
-  );
+  const targetCourse = coursesStore.getCourseById(courseId);
+  const targetCanon = targetCourse ? getCanonicalCourseKey(targetCourse) : courseId;
+  return enrolled.some((rawId) => {
+    if (rawId === courseId) return true;
+    if (rawId === 'course-1' || rawId === 'c-1') return targetCanon === 'canonical-enem';
+    if (rawId === 'course-2' || rawId === 'c-2') return targetCanon === 'canonical-redacao';
+    if (rawId === 'course-3' || rawId === 'c-3') return targetCanon === 'canonical-medicina';
+    const c = coursesStore.getCourseById(rawId);
+    return c && getCanonicalCourseKey(c) === targetCanon;
+  });
 };
 
 const myEnrolledCoursesCount = computed(() => {
-  return coursesStore.publishedCourses.filter((c) => isEnrolled(c.id)).length;
+  return published.value.filter((c) => isEnrolled(c.id)).length;
 });
 
 const lockedCoursesCount = computed(() => {
-  return coursesStore.publishedCourses.filter((c) => !isEnrolled(c.id)).length;
+  return published.value.filter((c) => !isEnrolled(c.id)).length;
 });
 
-const categories = computed(() => [...new Set(coursesStore.publishedCourses.map((c) => c.category))].sort());
+const categories = computed(() => [...new Set(published.value.map((c) => c.category))].sort());
 
 const filteredCourses = computed(() =>
-  coursesStore.publishedCourses.filter((c) => {
+  published.value.filter((c) => {
     const matchSearch = !searchQuery.value || c.title.toLowerCase().includes(searchQuery.value.toLowerCase());
     const matchCat = !categoryFilter.value || c.category === categoryFilter.value;
     

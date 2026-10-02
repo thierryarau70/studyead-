@@ -157,7 +157,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 import { useAuthStore } from '~/stores/auth';
-import { useCoursesStore } from '~/stores/courses';
+import { useCoursesStore, deduplicateCourses, getCanonicalCourseKey } from '~/stores/courses';
 import { useQuizzesStore } from '~/stores/quizzes';
 import { useQuestionsStore } from '~/stores/questions';
 
@@ -177,26 +177,37 @@ onMounted(() => {
 });
 
 const myEnrolledCourses = computed(() => {
-  if (authStore.canAccessAllCourses) return coursesStore.publishedCourses;
-  if (authStore.user?.email === 'aluno@cursinhoalpha.com.br') return coursesStore.publishedCourses;
+  const published = deduplicateCourses(coursesStore.publishedCourses);
+  if (published.length === 0) return [];
+
+  if (authStore.canAccessAllCourses || authStore.user?.email === 'aluno@cursinhoalpha.com.br') {
+    return published;
+  }
+
   const enrolled = authStore.enrolledCourseIds || [];
   if (enrolled.length > 0) {
-    const matches = coursesStore.publishedCourses.filter(
-      (c) =>
-        enrolled.includes(c.id) ||
-        enrolled.includes(c.slug) ||
-        enrolled.includes(c.slug?.replace(/-completo$/, '')),
-    );
-    if (matches.length > 0) return matches;
+    const matches = published.filter((c) => {
+      const canon = getCanonicalCourseKey(c);
+      return enrolled.some((rawId) => {
+        if (rawId === c.id || rawId === c.slug) return true;
+        if (rawId === 'course-1' || rawId === 'c-1') return canon === 'canonical-enem';
+        if (rawId === 'course-2' || rawId === 'c-2') return canon === 'canonical-redacao';
+        if (rawId === 'course-3' || rawId === 'c-3') return canon === 'canonical-medicina';
+        const cObj = coursesStore.getCourseById(rawId);
+        return cObj && getCanonicalCourseKey(cObj) === canon;
+      });
+    });
+    if (matches.length > 0) return deduplicateCourses(matches);
   }
-  // Default fallback for students without specific restrictions
-  return coursesStore.publishedCourses;
+
+  return published;
 });
 
 const myEnrolledCoursesCount = computed(() => myEnrolledCourses.value.length);
 
 const totalLessonsCount = computed(() => {
-  const sum = coursesStore.publishedCourses.reduce((acc, c) => {
+  const uniqueCourses = deduplicateCourses(coursesStore.publishedCourses);
+  const sum = uniqueCourses.reduce((acc, c) => {
     const modulesLessons = c.modules?.reduce((mSum, m) => mSum + (m.lessons?.length || 0), 0) || 0;
     const lessons = Math.max(Number(c.totalLessons) || 0, modulesLessons);
     return acc + (lessons > 0 ? lessons : (c.modules?.length ? c.modules.length * 4 : 8));

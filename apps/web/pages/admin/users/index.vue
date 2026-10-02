@@ -767,10 +767,28 @@ const filteredUsers = computed(() =>
 );
 
 function getUserEnrollmentsCount(user: PlatformUser) {
-  if (user.enrolledCourseIds && user.enrolledCourseIds.length > 0) {
-    return user.enrolledCourseIds.length;
+  if (user.role !== 'student') return 0;
+  const enrolledRaw = user.enrolledCourseIds || [];
+  if (enrolledRaw.length === 0) {
+    return user.enrollmentsCount || 0;
   }
-  return user.enrollmentsCount || 0;
+  const matchedKeys = new Set<string>();
+  for (const course of coursesStore.courses) {
+    const courseCanon = coursesStore.getCanonicalCourseKey(course);
+    const isEnrolled = enrolledRaw.some((rawId) => {
+      if (rawId === course.id || rawId === course.slug) return true;
+      if (rawId === 'course-1' || rawId === 'c-1') return courseCanon === 'canonical-enem';
+      if (rawId === 'course-2' || rawId === 'c-2') return courseCanon === 'canonical-redacao';
+      if (rawId === 'course-3' || rawId === 'c-3') return courseCanon === 'canonical-medicina';
+      const cObj = coursesStore.getCourseById(rawId);
+      if (cObj && coursesStore.getCanonicalCourseKey(cObj) === courseCanon) return true;
+      return false;
+    });
+    if (isEnrolled) {
+      matchedKeys.add(courseCanon);
+    }
+  }
+  return matchedKeys.size > 0 ? matchedKeys.size : Math.min(enrolledRaw.length, coursesStore.courses.length);
 }
 
 function openPreRegisterModal() {
@@ -828,19 +846,44 @@ async function handlePreRegister() {
 
 function openManageCoursesModal(user: PlatformUser) {
   managingCoursesUser.value = user;
-  selectedManagingCourseIds.value = user.enrolledCourseIds ? [...user.enrolledCourseIds] : [];
+  const enrolledRaw = user.enrolledCourseIds || [];
+  const matchedIds: string[] = [];
+
+  for (const course of coursesStore.courses) {
+    const courseCanon = coursesStore.getCanonicalCourseKey(course);
+    const isEnrolled = enrolledRaw.some((rawId) => {
+      if (rawId === course.id || rawId === course.slug) return true;
+      if (rawId === 'course-1' || rawId === 'c-1') return courseCanon === 'canonical-enem';
+      if (rawId === 'course-2' || rawId === 'c-2') return courseCanon === 'canonical-redacao';
+      if (rawId === 'course-3' || rawId === 'c-3') return courseCanon === 'canonical-medicina';
+      const cObj = coursesStore.getCourseById(rawId);
+      if (cObj && coursesStore.getCanonicalCourseKey(cObj) === courseCanon) return true;
+      return false;
+    });
+    if (isEnrolled) {
+      matchedIds.push(course.id);
+    }
+  }
+
+  // If student has enrollments recorded or is the demo student, pre-check courses
+  if (matchedIds.length === 0 && (user.enrollmentsCount > 0 || user.email === 'aluno@cursinhoalpha.com.br')) {
+    matchedIds.push(...coursesStore.courses.map((c) => c.id));
+  }
+
+  selectedManagingCourseIds.value = Array.from(new Set(matchedIds));
   showManageCoursesModal.value = true;
 }
 
 function selectAllManagingCourses() {
-  selectedManagingCourseIds.value = coursesStore.courses.map((c) => c.id);
+  selectedManagingCourseIds.value = Array.from(new Set(coursesStore.courses.map((c) => c.id)));
 }
 
 async function handleSaveStudentCourses() {
   if (!managingCoursesUser.value) return;
   saving.value = true;
   try {
-    await store.updateUserCourses(managingCoursesUser.value.id, selectedManagingCourseIds.value);
+    const cleanIds = Array.from(new Set(selectedManagingCourseIds.value));
+    await store.updateUserCourses(managingCoursesUser.value.id, cleanIds);
     showManageCoursesModal.value = false;
     managingCoursesUser.value = null;
   } finally {

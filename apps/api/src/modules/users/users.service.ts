@@ -173,24 +173,17 @@ export class UsersService {
 
     // Optionally enroll into initial courses immediately
     if (Array.isArray(input.courseIds) && input.courseIds.length > 0) {
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const validCourseIds = input.courseIds.filter((cId: string) => uuidRegex.test(cId));
-      if (validCourseIds.length > 0) {
-        const validCourses = await this.prisma.course.findMany({
-          where: { id: { in: validCourseIds }, tenantId },
-          select: { id: true },
-        });
-        for (const course of validCourses) {
-          await this.prisma.enrollment.create({
-            data: {
-              tenantId,
-              userId: user.id,
-              courseId: course.id,
-              source: 'admin',
-              status: 'active',
-            },
-          }).catch(() => {});
-        }
+      const validCourseIds = await this.resolveCourseUuids(tenantId, input.courseIds);
+      for (const courseId of validCourseIds) {
+        await this.prisma.enrollment.create({
+          data: {
+            tenantId,
+            userId: user.id,
+            courseId,
+            source: 'admin',
+            status: 'active',
+          },
+        }).catch(() => {});
       }
     }
 
@@ -198,6 +191,50 @@ export class UsersService {
       ...user,
       isPreRegistered,
     };
+  }
+
+  /**
+   * Helper: Resolve raw course IDs (UUID, c-1, slugs) to real database Course UUIDs
+   */
+  private async resolveCourseUuids(tenantId: string, courseIds: string[]): Promise<string[]> {
+    if (!Array.isArray(courseIds) || courseIds.length === 0) return [];
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const directUuids = courseIds.filter((id) => typeof id === 'string' && uuidRegex.test(id));
+    const nonUuids = courseIds.filter((id) => typeof id === 'string' && !uuidRegex.test(id));
+
+    const resolved = new Set<string>(directUuids);
+
+    if (nonUuids.length > 0) {
+      const allCourses = await this.prisma.course.findMany({
+        where: { tenantId },
+        select: { id: true, slug: true, title: true, category: true },
+      });
+
+      for (const raw of nonUuids) {
+        const clean = raw.toLowerCase().trim();
+        const matched = allCourses.find((c) => {
+          const s = c.slug.toLowerCase();
+          const t = c.title.toLowerCase();
+          if (clean === s || clean === `${s}-completo` || s === `${clean}-completo`) return true;
+          if (clean === 'c-1' || clean === 'course-1') {
+            return s.includes('enem') || t.includes('enem');
+          }
+          if (clean === 'c-2' || clean === 'course-2') {
+            return s.includes('redacao') || t.includes('redacao') || (c.category && c.category.toLowerCase().includes('redacao'));
+          }
+          if (clean === 'c-3' || clean === 'course-3') {
+            return s.includes('medicina') || s.includes('fisica') || t.includes('medicina') || t.includes('fisica');
+          }
+          return false;
+        });
+        if (matched) {
+          resolved.add(matched.id);
+        }
+      }
+    }
+
+    return Array.from(resolved);
   }
 
   /**
@@ -212,8 +249,7 @@ export class UsersService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const validCourseIds = (Array.isArray(courseIds) ? courseIds : []).filter((id) => uuidRegex.test(id));
+    const validCourseIds = await this.resolveCourseUuids(tenantId, courseIds);
 
     const currentEnrollments = await this.prisma.enrollment.findMany({
       where: { userId, tenantId },

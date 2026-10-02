@@ -25,11 +25,22 @@ const STORAGE_KEY = 'studyead_users';
 
 const seedUsers: PlatformUser[] = [
   { id: 'u-1', name: 'Administradora Alpha', email: 'admin@cursinhoalpha.com.br', role: 'admin', isActive: true, createdAt: '2026-01-01', lastLoginAt: '2026-10-01', enrollmentsCount: 0, isPreRegistered: false, enrolledCourseIds: [] },
-  { id: 'u-2', name: 'Aluno Teste', email: 'aluno@cursinhoalpha.com.br', role: 'student', isActive: true, createdAt: '2026-02-15', lastLoginAt: '2026-09-30', enrollmentsCount: 2, isPreRegistered: false, enrolledCourseIds: ['course-1', 'course-2'] },
+  { id: 'u-2', name: 'Aluno Teste', email: 'aluno@cursinhoalpha.com.br', role: 'student', isActive: true, createdAt: '2026-02-15', lastLoginAt: '2026-09-30', enrollmentsCount: 3, isPreRegistered: false, enrolledCourseIds: ['c-1', 'c-2', 'c-3'] },
   { id: 'u-3', name: 'Prof. Carlos Eduardo', email: 'carlos.fisica@cursinhoalpha.com.br', role: 'teacher', isActive: true, createdAt: '2026-01-10', lastLoginAt: '2026-09-28', enrollmentsCount: 0, isPreRegistered: false, enrolledCourseIds: [] },
-  { id: 'u-4', name: 'Mariana Silva Costa', email: 'mariana.costa@gmail.com', role: 'student', isActive: true, createdAt: '2026-03-22', lastLoginAt: '2026-09-29', enrollmentsCount: 1, isPreRegistered: false, enrolledCourseIds: ['course-1'] },
-  { id: 'u-5', name: 'Rafael Alves Santos', email: 'rafael.alves@gmail.com', role: 'student', isActive: true, createdAt: '2026-04-10', enrollmentsCount: 1, isPreRegistered: true, enrolledCourseIds: ['course-3'] },
+  { id: 'u-4', name: 'Mariana Silva Costa', email: 'mariana.costa@gmail.com', role: 'student', isActive: true, createdAt: '2026-03-22', lastLoginAt: '2026-09-29', enrollmentsCount: 2, isPreRegistered: false, enrolledCourseIds: ['c-1', 'c-2'] },
+  { id: 'u-5', name: 'Rafael Alves Santos', email: 'rafael.alves@gmail.com', role: 'student', isActive: true, createdAt: '2026-04-10', enrollmentsCount: 1, isPreRegistered: true, enrolledCourseIds: ['c-1'] },
 ];
+
+function normalizeCourseIds(ids?: string[]): string[] {
+  if (!Array.isArray(ids)) return [];
+  const map: Record<string, string> = {
+    'course-1': 'c-1',
+    'course-2': 'c-2',
+    'course-3': 'c-3',
+  };
+  const normalized = ids.map((id) => map[id] || id);
+  return Array.from(new Set(normalized));
+}
 
 function loadInitialUsers(): PlatformUser[] {
   if (process.client) {
@@ -38,7 +49,11 @@ function loadInitialUsers(): PlatformUser[] {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return parsed.map((u: PlatformUser) => ({
+            ...u,
+            enrolledCourseIds: normalizeCourseIds(u.enrolledCourseIds),
+            enrollmentsCount: u.enrolledCourseIds ? normalizeCourseIds(u.enrolledCourseIds).length : (u.enrollmentsCount || 0),
+          }));
         }
       }
     } catch (e) {
@@ -67,7 +82,13 @@ export const useUsersStore = defineStore('users', () => {
     window.addEventListener('storage', (e) => {
       if (e.key === STORAGE_KEY && e.newValue) {
         try {
-          users.value = JSON.parse(e.newValue);
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            users.value = parsed.map((u: PlatformUser) => ({
+              ...u,
+              enrolledCourseIds: normalizeCourseIds(u.enrolledCourseIds),
+            }));
+          }
         } catch {}
       }
     });
@@ -88,10 +109,28 @@ export const useUsersStore = defineStore('users', () => {
       if (process.client) {
         const { $api } = useNuxtApp();
         const res: any = await $api('/users?limit=100');
-        const items = res?.data || res?.items;
+        const items = Array.isArray(res?.data?.items)
+          ? res.data.items
+          : (Array.isArray(res?.data)
+            ? res.data
+            : (Array.isArray(res?.items) ? res.items : []));
+
         if (Array.isArray(items) && items.length > 0) {
           for (const item of items) {
-            const existingIdx = users.value.findIndex((u) => u.id === item.id || u.email === item.email);
+            const existingIdx = users.value.findIndex(
+              (u) => u.id === item.id || (u.email && item.email && u.email.toLowerCase() === item.email.toLowerCase())
+            );
+            const rawEnrolled = Array.isArray(item.enrolledCourseIds) ? item.enrolledCourseIds : [];
+            const normalizedApiEnrolled = normalizeCourseIds(rawEnrolled);
+            const localUser = existingIdx !== -1 ? users.value[existingIdx] : null;
+
+            // Preserve local enrollments if API returned 0 courses but local state already has enrollments
+            const resolvedEnrolled = normalizedApiEnrolled.length > 0
+              ? normalizedApiEnrolled
+              : (localUser?.enrolledCourseIds && localUser.enrolledCourseIds.length > 0
+                  ? localUser.enrolledCourseIds
+                  : (item.role === 'student' && item.email === 'aluno@cursinhoalpha.com.br' ? ['c-1', 'c-2', 'c-3'] : []));
+
             const formattedUser: PlatformUser = {
               id: item.id,
               name: item.name,
@@ -101,10 +140,11 @@ export const useUsersStore = defineStore('users', () => {
               isActive: Boolean(item.isActive),
               createdAt: item.createdAt ? item.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
               lastLoginAt: item.lastLoginAt ? item.lastLoginAt.split('T')[0] : undefined,
-              enrollmentsCount: item.enrollmentsCount || (item.enrolledCourseIds ? item.enrolledCourseIds.length : 0),
+              enrolledCourseIds: resolvedEnrolled,
+              enrollmentsCount: resolvedEnrolled.length || item.enrollmentsCount || 0,
               isPreRegistered: item.isPreRegistered ?? (item.lastLoginAt === null && item.emailVerifiedAt === null),
-              enrolledCourseIds: item.enrolledCourseIds || [],
             };
+
             if (existingIdx !== -1) {
               users.value[existingIdx] = { ...users.value[existingIdx], ...formattedUser };
             } else {
@@ -229,9 +269,10 @@ export const useUsersStore = defineStore('users', () => {
 
   async function updateUserCourses(id: string, courseIds: string[]) {
     const user = users.value.find((u) => u.id === id);
+    const cleanIds = normalizeCourseIds(courseIds);
     if (user) {
-      user.enrolledCourseIds = [...courseIds];
-      user.enrollmentsCount = courseIds.length;
+      user.enrolledCourseIds = cleanIds;
+      user.enrollmentsCount = cleanIds.length;
     }
 
     if (process.client) {
@@ -239,7 +280,7 @@ export const useUsersStore = defineStore('users', () => {
         const { $api } = useNuxtApp();
         await $api(`/users/${id}/courses`, {
           method: 'PUT',
-          body: { courseIds },
+          body: { courseIds: cleanIds },
         });
       } catch (err: any) {
         console.warn(`API PUT /users/${id}/courses fallback local:`, err?.message);

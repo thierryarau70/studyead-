@@ -408,21 +408,104 @@ const seedCourses: Course[] = [
 
 const STORAGE_KEY = 'studyead_courses_v3';
 
+export function getCanonicalCourseKey(course: { id?: string; slug?: string; title?: string; category?: string }): string {
+  const slug = (course.slug || '').toLowerCase().trim();
+  const title = (course.title || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const id = (course.id || '').toLowerCase().trim();
+
+  if (id === 'c-1' || id === 'course-1' || slug.includes('enem') || title.includes('enem')) {
+    return 'canonical-enem';
+  }
+  if (
+    id === 'c-2' ||
+    id === 'course-2' ||
+    slug.includes('redacao') ||
+    title.includes('redacao') ||
+    (course.category && course.category.toLowerCase().includes('redacao'))
+  ) {
+    return 'canonical-redacao';
+  }
+  if (
+    id === 'c-3' ||
+    id === 'course-3' ||
+    slug.includes('fisica') ||
+    slug.includes('medicina') ||
+    title.includes('fisica') ||
+    title.includes('medicina')
+  ) {
+    return 'canonical-medicina';
+  }
+  return slug ? slug.replace(/-completo$/, '') : title;
+}
+
+export function deduplicateCourses(courseList: Course[]): Course[] {
+  if (!Array.isArray(courseList)) return [];
+  const seenKeys = new Map<string, Course>();
+
+  for (const c of courseList) {
+    if (!c) continue;
+    const key = getCanonicalCourseKey(c);
+    const existing = seenKeys.get(key);
+
+    if (!existing) {
+      seenKeys.set(key, { ...c });
+    } else {
+      // Merge: prefer API UUID id if available
+      const isExistingUuid = existing.id && existing.id.includes('-');
+      const isCurrentUuid = c.id && c.id.includes('-') && !c.id.startsWith('c-');
+      const chosen = isCurrentUuid ? c : existing;
+      const donor = chosen === c ? existing : c;
+
+      const chosenLessons = chosen.modules?.reduce((sum, m) => sum + (m.lessons?.length || 0), 0) || 0;
+      const donorLessons = donor.modules?.reduce((sum, m) => sum + (m.lessons?.length || 0), 0) || 0;
+      const modules = chosenLessons >= donorLessons ? chosen.modules : donor.modules;
+
+      const calcLessons = modules?.reduce((sum, m) => sum + (m.lessons?.length || 0), 0) || 0;
+      const totalLessons = Math.max(
+        Number(chosen.totalLessons) || 0,
+        Number(donor.totalLessons) || 0,
+        calcLessons
+      );
+      const totalDurationMinutes = Math.max(
+        Number(chosen.totalDurationMinutes) || 0,
+        Number(donor.totalDurationMinutes) || 0
+      );
+
+      const merged: Course = {
+        ...donor,
+        ...chosen,
+        id: chosen.id || donor.id,
+        description: chosen.description || donor.description,
+        thumbnailUrl: chosen.thumbnailUrl || donor.thumbnailUrl,
+        modules: modules && modules.length > 0 ? modules : (chosen.modules || []),
+        totalLessons,
+        totalDurationMinutes,
+        isPublished: Boolean(chosen.isPublished ?? donor.isPublished),
+        status: chosen.status || donor.status || 'published',
+      };
+      seenKeys.set(key, merged);
+    }
+  }
+
+  return Array.from(seenKeys.values());
+}
+
 function loadInitialCourses(): Course[] {
+  let initial = seedCourses;
   if (process.client) {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          initial = parsed;
         }
       }
     } catch (e) {
       console.error('Erro ao ler cursos do localStorage:', e);
     }
   }
-  return seedCourses;
+  return deduplicateCourses(initial);
 }
 
 // ── Store ──────────────────────────────────────────────────────────
@@ -436,7 +519,8 @@ export const useCoursesStore = defineStore('courses', () => {
       courses,
       (newVal) => {
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
+          const clean = deduplicateCourses(newVal);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(clean));
         } catch (e) {
           console.error('Erro ao salvar cursos no localStorage:', e);
         }
@@ -447,19 +531,21 @@ export const useCoursesStore = defineStore('courses', () => {
     window.addEventListener('storage', (e) => {
       if (e.key === STORAGE_KEY && e.newValue) {
         try {
-          courses.value = JSON.parse(e.newValue);
+          courses.value = deduplicateCourses(JSON.parse(e.newValue));
         } catch {}
       }
     });
   }
 
-  // Published courses visible to students
+  // Published courses visible to students (always strictly deduplicated)
   const publishedCourses = computed(() =>
-    courses.value.filter((c) => c.isPublished).sort((a, b) => a.sortOrder - b.sortOrder),
+    deduplicateCourses(courses.value.filter((c) => c.isPublished)).sort((a, b) => a.sortOrder - b.sortOrder),
   );
 
-  // All courses for admin
-  const allCourses = computed(() => [...courses.value].sort((a, b) => a.sortOrder - b.sortOrder));
+  // All courses for admin (always strictly deduplicated)
+  const allCourses = computed(() =>
+    deduplicateCourses(courses.value).sort((a, b) => a.sortOrder - b.sortOrder),
+  );
 
   function getCourseBySlug(slug: string) {
     if (!slug) return undefined;
@@ -469,13 +555,20 @@ export const useCoursesStore = defineStore('courses', () => {
         c.slug.toLowerCase() === cleanSlug ||
         c.slug.toLowerCase() === cleanSlug.replace(/-completo$/, '') ||
         cleanSlug === `${c.slug.toLowerCase()}-completo` ||
-        c.id === cleanSlug,
+        c.id === cleanSlug ||
+        getCanonicalCourseKey(c) === getCanonicalCourseKey({ slug: cleanSlug, title: cleanSlug, id: cleanSlug }),
     );
   }
 
   function getCourseById(id: string) {
     if (!id) return undefined;
-    return courses.value.find((c) => c.id === id || c.slug === id);
+    const cleanId = id.trim();
+    return courses.value.find(
+      (c) =>
+        c.id === cleanId ||
+        c.slug === cleanId ||
+        getCanonicalCourseKey(c) === getCanonicalCourseKey({ id: cleanId, slug: cleanId }),
+    );
   }
 
   async function fetchCourses() {
@@ -485,21 +578,23 @@ export const useCoursesStore = defineStore('courses', () => {
       if (process.client) {
         const { $api } = useNuxtApp();
         const res: any = await $api('/courses?limit=100');
-        const items = res?.data?.items || res?.data || res?.items;
+        const items = Array.isArray(res?.data?.items)
+          ? res.data.items
+          : (Array.isArray(res?.data)
+            ? res.data
+            : (Array.isArray(res?.items) ? res.items : []));
+
         if (Array.isArray(items) && items.length > 0) {
-          const apiIds = new Set(items.map((i: any) => i.id));
-          const apiSlugs = new Set(items.map((i: any) => i.slug));
-          
           const formatted = items.map((item: any) => {
+            const itemCanon = getCanonicalCourseKey(item);
             const local = courses.value.find(
               (c) =>
                 c.id === item.id ||
                 c.slug === item.slug ||
-                c.slug === item.slug?.replace(/-completo$/, '') ||
-                item.slug === `${c.slug}-completo`
+                getCanonicalCourseKey(c) === itemCanon
             );
             const fallbackSeed = seedCourses.find(
-              (s) => s.slug === item.slug || s.category === item.category || s.id === 'c-1'
+              (s) => getCanonicalCourseKey(s) === itemCanon || s.slug === item.slug
             );
             const modules = (item.modules && item.modules.length > 0)
               ? item.modules
@@ -515,19 +610,17 @@ export const useCoursesStore = defineStore('courses', () => {
               ...item,
               description: item.description || local?.description || fallbackSeed?.description || '',
               thumbnailUrl: item.thumbnailUrl || local?.thumbnailUrl || fallbackSeed?.thumbnailUrl || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&auto=format&fit=crop&q=60',
-              category: item.category || local?.category || 'Geral',
+              category: item.category || local?.category || fallbackSeed?.category || 'Geral',
               modules,
               totalLessons,
               totalDurationMinutes,
+              isPublished: Boolean(item.isPublished ?? local?.isPublished ?? true),
+              status: item.status || local?.status || 'published',
             };
           });
 
-          // Keep non-conflicting local or seed courses
-          const nonReplaced = courses.value.filter(
-            (c) => !apiIds.has(c.id) && !apiSlugs.has(c.slug)
-          );
-
-          courses.value = [...formatted, ...nonReplaced];
+          // Merge API formatted courses with local courses, strictly deduplicating
+          courses.value = deduplicateCourses([...formatted, ...courses.value]);
         }
       }
     } catch (err: any) {
