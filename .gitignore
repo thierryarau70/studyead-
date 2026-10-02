@@ -15,6 +15,7 @@ dist/
 build/
 .output/
 .nuxt/
+.vercel/
 coverage/
 
 # Environment variables
