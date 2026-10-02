@@ -18,16 +18,17 @@ export interface PlatformUser {
   lastLoginAt?: string;
   enrollmentsCount: number;
   isPreRegistered?: boolean;
+  enrolledCourseIds?: string[];
 }
 
 const STORAGE_KEY = 'studyead_users';
 
 const seedUsers: PlatformUser[] = [
-  { id: 'u-1', name: 'Administradora Alpha', email: 'admin@cursinhoalpha.com.br', role: 'admin', isActive: true, createdAt: '2026-01-01', lastLoginAt: '2026-10-01', enrollmentsCount: 0, isPreRegistered: false },
-  { id: 'u-2', name: 'Aluno Teste', email: 'aluno@cursinhoalpha.com.br', role: 'student', isActive: true, createdAt: '2026-02-15', lastLoginAt: '2026-09-30', enrollmentsCount: 2, isPreRegistered: false },
-  { id: 'u-3', name: 'Prof. Carlos Eduardo', email: 'carlos.fisica@cursinhoalpha.com.br', role: 'teacher', isActive: true, createdAt: '2026-01-10', lastLoginAt: '2026-09-28', enrollmentsCount: 0, isPreRegistered: false },
-  { id: 'u-4', name: 'Mariana Silva Costa', email: 'mariana.costa@gmail.com', role: 'student', isActive: true, createdAt: '2026-03-22', lastLoginAt: '2026-09-29', enrollmentsCount: 1, isPreRegistered: false },
-  { id: 'u-5', name: 'Rafael Alves Santos', email: 'rafael.alves@gmail.com', role: 'student', isActive: false, createdAt: '2026-04-10', enrollmentsCount: 1, isPreRegistered: true },
+  { id: 'u-1', name: 'Administradora Alpha', email: 'admin@cursinhoalpha.com.br', role: 'admin', isActive: true, createdAt: '2026-01-01', lastLoginAt: '2026-10-01', enrollmentsCount: 0, isPreRegistered: false, enrolledCourseIds: [] },
+  { id: 'u-2', name: 'Aluno Teste', email: 'aluno@cursinhoalpha.com.br', role: 'student', isActive: true, createdAt: '2026-02-15', lastLoginAt: '2026-09-30', enrollmentsCount: 2, isPreRegistered: false, enrolledCourseIds: ['course-1', 'course-2'] },
+  { id: 'u-3', name: 'Prof. Carlos Eduardo', email: 'carlos.fisica@cursinhoalpha.com.br', role: 'teacher', isActive: true, createdAt: '2026-01-10', lastLoginAt: '2026-09-28', enrollmentsCount: 0, isPreRegistered: false, enrolledCourseIds: [] },
+  { id: 'u-4', name: 'Mariana Silva Costa', email: 'mariana.costa@gmail.com', role: 'student', isActive: true, createdAt: '2026-03-22', lastLoginAt: '2026-09-29', enrollmentsCount: 1, isPreRegistered: false, enrolledCourseIds: ['course-1'] },
+  { id: 'u-5', name: 'Rafael Alves Santos', email: 'rafael.alves@gmail.com', role: 'student', isActive: true, createdAt: '2026-04-10', enrollmentsCount: 1, isPreRegistered: true, enrolledCourseIds: ['course-3'] },
 ];
 
 function loadInitialUsers(): PlatformUser[] {
@@ -100,8 +101,9 @@ export const useUsersStore = defineStore('users', () => {
               isActive: Boolean(item.isActive),
               createdAt: item.createdAt ? item.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
               lastLoginAt: item.lastLoginAt ? item.lastLoginAt.split('T')[0] : undefined,
-              enrollmentsCount: item.enrollmentsCount || 0,
+              enrollmentsCount: item.enrollmentsCount || (item.enrolledCourseIds ? item.enrolledCourseIds.length : 0),
               isPreRegistered: item.isPreRegistered ?? (item.lastLoginAt === null && item.emailVerifiedAt === null),
+              enrolledCourseIds: item.enrolledCourseIds || [],
             };
             if (existingIdx !== -1) {
               users.value[existingIdx] = { ...users.value[existingIdx], ...formattedUser };
@@ -129,6 +131,8 @@ export const useUsersStore = defineStore('users', () => {
       password?: string;
     }
   ) {
+    const isStudent = (data.role || 'student') === 'student';
+    const isPreReg = data.isPreRegistration !== undefined ? data.isPreRegistration : isStudent;
     const tempId = `u-${Date.now()}`;
     const newUser: PlatformUser = {
       name: data.name,
@@ -138,8 +142,9 @@ export const useUsersStore = defineStore('users', () => {
       isActive: data.isActive !== undefined ? data.isActive : true,
       id: tempId,
       createdAt: new Date().toISOString().split('T')[0],
+      enrolledCourseIds: data.courseIds ? [...data.courseIds] : [],
       enrollmentsCount: data.courseIds ? data.courseIds.length : 0,
-      isPreRegistered: data.isPreRegistration ?? false,
+      isPreRegistered: isPreReg,
     };
     users.value.unshift(newUser);
 
@@ -154,7 +159,7 @@ export const useUsersStore = defineStore('users', () => {
             role: data.role,
             phone: data.phone,
             isActive: Boolean(data.isActive),
-            isPreRegistration: Boolean(data.isPreRegistration),
+            isPreRegistration: isPreReg,
             courseIds: data.courseIds,
             password: data.password,
           },
@@ -164,6 +169,9 @@ export const useUsersStore = defineStore('users', () => {
           newUser.id = createdUser.id;
           if (createdUser.isPreRegistered !== undefined) {
             newUser.isPreRegistered = createdUser.isPreRegistered;
+          }
+          if (createdUser.enrolledCourseIds) {
+            newUser.enrolledCourseIds = createdUser.enrolledCourseIds;
           }
         }
       } catch (err: any) {
@@ -219,6 +227,26 @@ export const useUsersStore = defineStore('users', () => {
     }
   }
 
+  async function updateUserCourses(id: string, courseIds: string[]) {
+    const user = users.value.find((u) => u.id === id);
+    if (user) {
+      user.enrolledCourseIds = [...courseIds];
+      user.enrollmentsCount = courseIds.length;
+    }
+
+    if (process.client) {
+      try {
+        const { $api } = useNuxtApp();
+        await $api(`/users/${id}/courses`, {
+          method: 'PUT',
+          body: { courseIds },
+        });
+      } catch (err: any) {
+        console.warn(`API PUT /users/${id}/courses fallback local:`, err?.message);
+      }
+    }
+  }
+
   function resetToDefault() {
     users.value = [...seedUsers];
     if (process.client) {
@@ -237,6 +265,7 @@ export const useUsersStore = defineStore('users', () => {
     getById,
     createUser,
     updateUser,
+    updateUserCourses,
     toggleActive,
     changeRole,
     deleteUser,

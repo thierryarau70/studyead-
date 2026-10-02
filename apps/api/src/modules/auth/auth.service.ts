@@ -139,8 +139,8 @@ export class AuthService {
         passwordHash,
         role: UserRole.STUDENT,
         isActive: true,
-        lastLoginAt: new Date(),
-        emailVerifiedAt: new Date(),
+        lastLoginAt: null,
+        emailVerifiedAt: null,
       },
     });
 
@@ -232,6 +232,10 @@ export class AuthService {
         isActive: true,
         lastLoginAt: true,
         createdAt: true,
+        enrollments: {
+          where: { status: 'active' },
+          select: { courseId: true },
+        },
       },
     });
 
@@ -239,7 +243,19 @@ export class AuthService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    return user;
+    return {
+      id: user.id,
+      tenantId: user.tenantId,
+      role: user.role,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      avatarUrl: user.avatarUrl,
+      isActive: user.isActive,
+      lastLoginAt: user.lastLoginAt,
+      createdAt: user.createdAt,
+      enrolledCourseIds: user.enrollments ? user.enrollments.map((e) => e.courseId) : [],
+    };
   }
 
   async updateMe(userId: string, input: { name?: string; phone?: string }) {

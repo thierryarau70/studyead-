@@ -5,7 +5,15 @@ import type { LoginInput, RegisterInput } from '@studyead/validators';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    user: null as Omit<User, 'passwordHash'> | null,
+    user: (typeof window !== 'undefined' && localStorage.getItem('study_user')
+      ? (() => {
+          try {
+            return JSON.parse(localStorage.getItem('study_user')!);
+          } catch {
+            return null;
+          }
+        })()
+      : null) as (Omit<User, 'passwordHash'> & { enrolledCourseIds?: string[] }) | null,
     token: (typeof window !== 'undefined' ? localStorage.getItem('study_token') : null) as string | null,
     tenantId: '00000000-0000-0000-0000-000000000001',
     loading: false,
@@ -15,14 +23,22 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: (state) => !!state.token && !!state.user,
     isAdmin: (state) => state.user?.role === UserRole.ADMIN || state.user?.role === UserRole.SUPER_ADMIN,
     isStudent: (state) => state.user?.role === UserRole.STUDENT,
+    canAccessAllCourses: (state) =>
+      state.user?.role === UserRole.ADMIN ||
+      state.user?.role === UserRole.SUPER_ADMIN ||
+      (state.user?.role as any) === 'teacher',
+    enrolledCourseIds: (state) => state.user?.enrolledCourseIds || [],
   },
 
   actions: {
-    setAuth(authData: AuthUserResponse) {
-      this.user = authData.user;
+    setAuth(authData: AuthUserResponse & { user?: { enrolledCourseIds?: string[] } }) {
+      this.user = authData.user as any;
       this.token = authData.tokens.accessToken;
       if (typeof window !== 'undefined') {
         localStorage.setItem('study_token', authData.tokens.accessToken);
+        if (authData.user) {
+          localStorage.setItem('study_user', JSON.stringify(authData.user));
+        }
       }
     },
 
@@ -77,6 +93,9 @@ export const useAuthStore = defineStore('auth', {
       try {
         const response: any = await $api('/auth/me');
         this.user = response.data || response;
+        if (typeof window !== 'undefined' && this.user) {
+          localStorage.setItem('study_user', JSON.stringify(this.user));
+        }
         return this.user;
       } catch {
         this.logout();
@@ -89,6 +108,7 @@ export const useAuthStore = defineStore('auth', {
       this.token = null;
       if (typeof window !== 'undefined') {
         localStorage.removeItem('study_token');
+        localStorage.removeItem('study_user');
       }
     },
   },

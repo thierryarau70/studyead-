@@ -58,6 +58,16 @@ export class UsersController {
     return this.usersService.updateUser(tenantId, userId, body);
   }
 
+  @Put(':id/courses')
+  async updateUserCourses(
+    @Param('id') userId: string,
+    @Body('courseIds') courseIds: string[],
+    @CurrentUser() user: JwtPayload,
+  ) {
+    const tenantId = user?.tenantId || '00000000-0000-0000-0000-000000000001';
+    return this.usersService.updateUserCourses(tenantId, userId, courseIds);
+  }
+
   @Delete(':id')
   async deleteUser(
     @Param('id') userId: string,

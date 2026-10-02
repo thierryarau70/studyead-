@@ -23,8 +23,8 @@
           <i class="pi pi-book"></i>
         </div>
         <div>
-          <p class="text-xs font-semibold text-slate-500">Cursos Disponíveis</p>
-          <p class="text-2xl font-black text-slate-900">{{ coursesStore.publishedCourses.length }}</p>
+          <p class="text-xs font-semibold text-slate-500">{{ authStore.canAccessAllCourses ? 'Cursos no Catálogo' : 'Meus Cursos Liberados' }}</p>
+          <p class="text-2xl font-black text-slate-900">{{ myEnrolledCoursesCount }}</p>
         </div>
       </div>
 
@@ -71,9 +71,9 @@
         </NuxtLink>
       </div>
 
-      <div v-if="coursesStore.publishedCourses.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div v-if="myEnrolledCourses.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div
-          v-for="course in coursesStore.publishedCourses.slice(0, 4)"
+          v-for="course in myEnrolledCourses.slice(0, 4)"
           :key="course.id"
           class="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between space-y-4"
         >
@@ -110,9 +110,17 @@
         </div>
       </div>
 
-      <div v-else class="text-center py-12 bg-white rounded-3xl border border-slate-200">
-        <i class="pi pi-book text-4xl text-slate-200"></i>
-        <p class="mt-2 text-slate-400 font-semibold text-sm">Nenhum curso disponível no momento</p>
+      <div v-else class="text-center py-12 px-6 bg-white rounded-3xl border border-slate-200 space-y-3">
+        <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-xl">
+          <i class="pi pi-lock"></i>
+        </div>
+        <h3 class="text-base font-bold text-slate-800">Nenhum curso liberado na sua matrícula ainda</h3>
+        <p class="text-xs text-slate-500 max-w-md mx-auto">
+          Seu cadastro foi realizado com sucesso. A coordenação liberará seus cursos em breve ou você pode visualizar os módulos disponíveis no catálogo.
+        </p>
+        <NuxtLink to="/student/courses" class="inline-block px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-colors">
+          Ver Catálogo de Cursos
+        </NuxtLink>
       </div>
     </div>
 
@@ -165,7 +173,16 @@ onMounted(() => {
   coursesStore.fetchCourses();
   quizzesStore.fetchQuizzes();
   questionsStore.fetchQuestions();
+  authStore.fetchMe();
 });
+
+const myEnrolledCourses = computed(() => {
+  if (authStore.canAccessAllCourses) return coursesStore.publishedCourses;
+  const enrolled = authStore.enrolledCourseIds || [];
+  return coursesStore.publishedCourses.filter((c) => enrolled.includes(c.id));
+});
+
+const myEnrolledCoursesCount = computed(() => myEnrolledCourses.value.length);
 
 const totalLessonsCount = computed(() =>
   coursesStore.publishedCourses.reduce((sum, c) => sum + c.totalLessons, 0),

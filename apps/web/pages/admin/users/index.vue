@@ -14,13 +14,13 @@
           @click="openPreRegisterModal"
           class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold shadow-lg shadow-emerald-600/25 transition-all flex items-center gap-2 cursor-pointer"
         >
-          <i class="pi pi-bolt"></i> Pré-Cadastrar Aluno
+          <i class="pi pi-bolt"></i> Novo Aluno (Pré-Cadastro)
         </button>
         <button
           @click="openCreateModal"
           class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer"
         >
-          <i class="pi pi-user-plus"></i> Novo Usuário
+          <i class="pi pi-user-plus"></i> Outro Perfil (Staff)
         </button>
       </div>
     </div>
@@ -65,7 +65,7 @@
             <tr class="bg-slate-50 border-b border-slate-200 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
               <th class="p-4">Usuário</th>
               <th class="p-4">Perfil</th>
-              <th class="p-4">Matrículas</th>
+              <th class="p-4">Cursos Liberados</th>
               <th class="p-4">Último Acesso</th>
               <th class="p-4">Status</th>
               <th class="p-4 text-right">Ações</th>
@@ -105,7 +105,21 @@
                   <option value="admin">Admin</option>
                 </select>
               </td>
-              <td class="p-4 text-xs text-slate-600 font-semibold">{{ user.enrollmentsCount }} curso(s)</td>
+              <td class="p-4">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-slate-700 font-bold bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                    {{ getUserEnrollmentsCount(user) }} curso(s)
+                  </span>
+                  <button
+                    v-if="user.role === 'student'"
+                    @click="openManageCoursesModal(user)"
+                    class="text-[11px] font-bold text-brand-600 hover:text-brand-800 hover:underline flex items-center gap-1 cursor-pointer"
+                    title="Escolher quais cursos este aluno pode acessar"
+                  >
+                    <i class="pi pi-cog text-[10px]"></i> Escolher
+                  </button>
+                </div>
+              </td>
               <td class="p-4 text-xs text-slate-400">
                 <span v-if="user.isPreRegistered" class="text-amber-600 font-semibold">Aguardando ativação</span>
                 <span v-else>{{ user.lastLoginAt || 'Nunca' }}</span>
@@ -115,10 +129,10 @@
                   <span
                     v-if="user.isPreRegistered"
                     class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5"
-                    title="Aguardando o aluno definir a senha e ativar"
+                    title="Aguardando o aluno definir a senha e ativar a conta"
                   >
                     <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                    Aguardando Ativação
+                    Pré-Cadastro
                   </span>
                   <button
                     v-else
@@ -138,6 +152,14 @@
               </td>
               <td class="p-4 text-right">
                 <div class="flex items-center justify-end gap-1.5">
+                  <button
+                    v-if="user.role === 'student'"
+                    @click="openManageCoursesModal(user)"
+                    class="p-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition-colors text-xs cursor-pointer"
+                    title="Definir cursos liberados para este aluno"
+                  >
+                    <i class="pi pi-book"></i>
+                  </button>
                   <button
                     v-if="user.isPreRegistered || (!user.lastLoginAt && user.role === 'student')"
                     @click="openActivationLinkModal(user)"
@@ -181,8 +203,8 @@
               <i class="pi pi-bolt text-lg"></i>
             </div>
             <div>
-              <h3 class="text-lg font-extrabold text-slate-900">Pré-Cadastrar Aluno</h3>
-              <p class="text-xs text-slate-400">O aluno só precisará definir a senha no link</p>
+              <h3 class="text-lg font-extrabold text-slate-900">Pré-Cadastrar Novo Aluno</h3>
+              <p class="text-xs text-slate-400">Escolha os cursos liberados e envie o link de ativação</p>
             </div>
           </div>
           <button @click="showPreRegisterModal = false" class="text-slate-400 hover:text-slate-600">
@@ -221,19 +243,32 @@
               placeholder="(11) 98765-4321"
               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 bg-slate-50"
             />
-            <p class="text-[11px] text-slate-400 mt-0.5">Usado para enviar o link de ativação com um clique pelo WhatsApp.</p>
+            <p class="text-[11px] text-slate-400 mt-0.5">Permite enviar o link de ativação diretamente para o WhatsApp do aluno.</p>
           </div>
 
-          <!-- Courses Selection -->
+          <!-- Courses Selection for this student -->
           <div class="space-y-2 pt-1">
-            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-              Liberar Cursos Imediatamente (Matrícula)
-            </label>
-            <div class="space-y-1.5 max-h-40 overflow-y-auto border border-slate-100 rounded-xl p-2 bg-slate-50">
+            <div class="flex items-center justify-between">
+              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Cursos Liberados para este Aluno
+              </label>
+              <div class="flex items-center gap-2 text-[11px]">
+                <button type="button" @click="selectAllPreRegCourses" class="text-emerald-700 font-bold hover:underline cursor-pointer">
+                  Marcar Todos
+                </button>
+                <span class="text-slate-300">·</span>
+                <button type="button" @click="clearPreRegCourses" class="text-slate-500 hover:text-slate-700 cursor-pointer">
+                  Desmarcar
+                </button>
+              </div>
+            </div>
+            
+            <div class="space-y-1.5 max-h-48 overflow-y-auto border border-slate-200 rounded-xl p-2 bg-slate-50">
               <label 
                 v-for="course in coursesStore.courses" 
                 :key="course.id"
-                class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white cursor-pointer transition-colors"
+                class="flex items-center gap-3 p-2 rounded-xl hover:bg-white cursor-pointer transition-colors border border-transparent hover:border-slate-200"
+                :class="preRegForm.selectedCourseIds.includes(course.id) ? 'bg-emerald-50/50 border-emerald-200' : ''"
               >
                 <input 
                   type="checkbox" 
@@ -241,19 +276,27 @@
                   v-model="preRegForm.selectedCourseIds"
                   class="rounded text-emerald-600 focus:ring-emerald-500"
                 />
-                <span class="text-xs font-medium text-slate-800 flex-1 truncate">{{ course.title }}</span>
-                <span class="text-[10px] text-slate-400">{{ course.category }}</span>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs font-bold text-slate-900 truncate">{{ course.title }}</p>
+                  <p class="text-[10px] text-slate-500">{{ course.category }} · {{ course.totalLessons }} aulas</p>
+                </div>
+                <span v-if="preRegForm.selectedCourseIds.includes(course.id)" class="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded">
+                  Liberado
+                </span>
               </label>
               <p v-if="coursesStore.courses.length === 0" class="text-xs text-slate-400 p-2 text-center">
                 Nenhum curso cadastrado ainda.
               </p>
             </div>
+            <p class="text-[11px] text-slate-500">
+              {{ preRegForm.selectedCourseIds.length }} curso(s) selecionado(s) para este aluno.
+            </p>
           </div>
 
           <div class="p-3 bg-emerald-50/70 border border-emerald-200/60 rounded-xl flex items-start gap-2.5">
             <i class="pi pi-info-circle text-emerald-600 text-sm mt-0.5 shrink-0"></i>
             <p class="text-[11px] text-emerald-800 leading-relaxed">
-              O aluno não receberá uma senha provisória padrão. Ao abrir o link de ativação, o sistema reconhece o pré-cadastro e ele cria a própria senha.
+              O aluno não receberá uma senha padrão. Ao abrir o link de ativação, ele define a própria senha e tem acesso imediato apenas aos cursos marcados acima.
             </p>
           </div>
 
@@ -275,6 +318,92 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- ─── Manage Courses Modal (Per Student) ─── -->
+    <div v-if="showManageCoursesModal && managingCoursesUser" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 animate-fade-in max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+              <i class="pi pi-book text-lg"></i>
+            </div>
+            <div>
+              <h3 class="text-lg font-extrabold text-slate-900">Gerenciar Cursos do Aluno</h3>
+              <p class="text-xs text-slate-500">{{ managingCoursesUser.name }} ({{ managingCoursesUser.email }})</p>
+            </div>
+          </div>
+          <button @click="showManageCoursesModal = false; managingCoursesUser = null" class="text-slate-400 hover:text-slate-600">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Marque os cursos liberados para este aluno:
+            </span>
+            <div class="flex items-center gap-2 text-[11px]">
+              <button type="button" @click="selectAllManagingCourses" class="text-indigo-600 font-bold hover:underline cursor-pointer">
+                Marcar Todos
+              </button>
+              <span class="text-slate-300">·</span>
+              <button type="button" @click="selectedManagingCourseIds = []" class="text-slate-500 hover:text-slate-700 cursor-pointer">
+                Desmarcar
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-1.5 max-h-60 overflow-y-auto border border-slate-200 rounded-xl p-2 bg-slate-50">
+            <label
+              v-for="course in coursesStore.courses"
+              :key="course.id"
+              class="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white cursor-pointer transition-colors border border-transparent hover:border-slate-200"
+              :class="selectedManagingCourseIds.includes(course.id) ? 'bg-indigo-50/50 border-indigo-200' : ''"
+            >
+              <input
+                type="checkbox"
+                :value="course.id"
+                v-model="selectedManagingCourseIds"
+                class="rounded text-indigo-600 focus:ring-indigo-500"
+              />
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-slate-900 truncate">{{ course.title }}</p>
+                <p class="text-[10px] text-slate-500">{{ course.category }} · {{ course.totalLessons }} aulas</p>
+              </div>
+              <span
+                class="text-[10px] font-bold px-2 py-0.5 rounded"
+                :class="selectedManagingCourseIds.includes(course.id) ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-500'"
+              >
+                {{ selectedManagingCourseIds.includes(course.id) ? 'Liberado' : 'Bloqueado' }}
+              </span>
+            </label>
+          </div>
+
+          <p class="text-xs text-slate-500">
+            Total selecionado: <strong>{{ selectedManagingCourseIds.length }}</strong> de {{ coursesStore.courses.length }} cursos.
+          </p>
+        </div>
+
+        <div class="flex gap-3 pt-3 border-t border-slate-100">
+          <button
+            type="button"
+            @click="showManageCoursesModal = false; managingCoursesUser = null"
+            class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            @click="handleSaveStudentCourses"
+            :disabled="saving"
+            class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-md shadow-indigo-600/25 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <i v-if="saving" class="pi pi-spin pi-spinner"></i>
+            <span>{{ saving ? 'Salvando...' : 'Salvar Matrículas' }}</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -317,7 +446,7 @@
             </button>
           </div>
           <p class="text-[11px] text-slate-500">
-            O aluno acessa este link, confere o nome dele e define a senha para entrar imediatamente.
+            O aluno acessa este link, confere os dados pré-cadastrados e define sua senha para acessar os cursos liberados.
           </p>
         </div>
 
@@ -350,7 +479,7 @@
       </div>
     </div>
 
-    <!-- ─── Create User Modal (Standard) ─── -->
+    <!-- ─── Create User Modal (Staff: Teachers/Admins) ─── -->
     <div v-if="showCreateModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 animate-fade-in">
         <div class="flex items-center justify-between">
@@ -359,8 +488,8 @@
               <i class="pi pi-user-plus text-lg"></i>
             </div>
             <div>
-              <h3 class="text-lg font-extrabold text-slate-900">Novo Usuário</h3>
-              <p class="text-xs text-slate-400">Cadastre um administrador, professor ou aluno comum</p>
+              <h3 class="text-lg font-extrabold text-slate-900">Novo Usuário de Equipe</h3>
+              <p class="text-xs text-slate-400">Cadastre um professor, moderador ou administrador</p>
             </div>
           </div>
           <button @click="showCreateModal = false" class="text-slate-400 hover:text-slate-600">
@@ -375,7 +504,7 @@
               v-model="createForm.name"
               type="text"
               required
-              placeholder="Ex: João da Silva"
+              placeholder="Ex: Prof. Carlos Eduardo"
               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-brand-500 bg-slate-50"
             />
           </div>
@@ -386,7 +515,7 @@
               v-model="createForm.email"
               type="email"
               required
-              placeholder="joao@exemplo.com"
+              placeholder="carlos@cursinho.com.br"
               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-brand-500 bg-slate-50"
             />
           </div>
@@ -398,10 +527,10 @@
                 v-model="createForm.role"
                 class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-brand-500 bg-slate-50"
               >
-                <option value="student">Aluno</option>
                 <option value="teacher">Professor</option>
                 <option value="moderator">Moderador</option>
                 <option value="admin">Administrador</option>
+                <option value="student">Aluno</option>
               </select>
             </div>
             <div>
@@ -416,7 +545,7 @@
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Senha Inicial</label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Senha de Acesso</label>
             <input
               v-model="createForm.password"
               type="text"
@@ -444,7 +573,7 @@
               class="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
             >
               <i v-if="saving" class="pi pi-spin pi-spinner"></i>
-              <span>{{ saving ? 'Cadastrando...' : 'Cadastrar Usuário' }}</span>
+              <span>{{ saving ? 'Cadastrando...' : 'Cadastrar Membro' }}</span>
             </button>
           </div>
         </form>
@@ -576,6 +705,10 @@ const showPreRegisterModal = ref(false);
 const showActivationModal = ref(false);
 const activeActivationUser = ref<PlatformUser | null>(null);
 
+const showManageCoursesModal = ref(false);
+const managingCoursesUser = ref<PlatformUser | null>(null);
+const selectedManagingCourseIds = ref<string[]>([]);
+
 const editingUser = ref<PlatformUser | null>(null);
 const saving = ref(false);
 const copied = ref(false);
@@ -590,7 +723,7 @@ const preRegForm = ref({
 const createForm = ref({
   name: '',
   email: '',
-  role: 'student' as UserRole,
+  role: 'teacher' as UserRole,
   phone: '',
   password: 'Mudar@123',
   isActive: true,
@@ -633,14 +766,29 @@ const filteredUsers = computed(() =>
   }),
 );
 
+function getUserEnrollmentsCount(user: PlatformUser) {
+  if (user.enrolledCourseIds && user.enrolledCourseIds.length > 0) {
+    return user.enrolledCourseIds.length;
+  }
+  return user.enrollmentsCount || 0;
+}
+
 function openPreRegisterModal() {
   preRegForm.value = {
     name: '',
     email: '',
     phone: '',
-    selectedCourseIds: coursesStore.courses.map((c) => c.id), // select all by default for convenience
+    selectedCourseIds: coursesStore.courses.length > 0 ? [coursesStore.courses[0].id] : [],
   };
   showPreRegisterModal.value = true;
+}
+
+function selectAllPreRegCourses() {
+  preRegForm.value.selectedCourseIds = coursesStore.courses.map((c) => c.id);
+}
+
+function clearPreRegCourses() {
+  preRegForm.value.selectedCourseIds = [];
 }
 
 async function handlePreRegister() {
@@ -654,7 +802,7 @@ async function handlePreRegister() {
       role: 'student',
       isActive: true,
       isPreRegistration: true,
-      courseIds: preRegForm.value.selectedCourseIds,
+      courseIds: [...preRegForm.value.selectedCourseIds],
     });
 
     showPreRegisterModal.value = false;
@@ -669,9 +817,32 @@ async function handlePreRegister() {
       isActive: true,
       isPreRegistered: true,
       createdAt: new Date().toISOString(),
+      enrolledCourseIds: [...preRegForm.value.selectedCourseIds],
       enrollmentsCount: preRegForm.value.selectedCourseIds.length,
     };
     openActivationLinkModal(user);
+  } finally {
+    saving.value = false;
+  }
+}
+
+function openManageCoursesModal(user: PlatformUser) {
+  managingCoursesUser.value = user;
+  selectedManagingCourseIds.value = user.enrolledCourseIds ? [...user.enrolledCourseIds] : [];
+  showManageCoursesModal.value = true;
+}
+
+function selectAllManagingCourses() {
+  selectedManagingCourseIds.value = coursesStore.courses.map((c) => c.id);
+}
+
+async function handleSaveStudentCourses() {
+  if (!managingCoursesUser.value) return;
+  saving.value = true;
+  try {
+    await store.updateUserCourses(managingCoursesUser.value.id, selectedManagingCourseIds.value);
+    showManageCoursesModal.value = false;
+    managingCoursesUser.value = null;
   } finally {
     saving.value = false;
   }
@@ -721,7 +892,7 @@ function openCreateModal() {
   createForm.value = {
     name: '',
     email: '',
-    role: 'student',
+    role: 'teacher',
     phone: '',
     password: 'Mudar@123',
     isActive: true,
@@ -733,6 +904,7 @@ async function handleCreateUser() {
   if (!createForm.value.name.trim() || !createForm.value.email.trim()) return;
   saving.value = true;
   try {
+    const isStudent = createForm.value.role === 'student';
     await store.createUser({
       name: createForm.value.name,
       email: createForm.value.email,
@@ -740,6 +912,7 @@ async function handleCreateUser() {
       phone: createForm.value.phone || undefined,
       password: createForm.value.password,
       isActive: createForm.value.isActive,
+      isPreRegistration: isStudent,
     });
     showCreateModal.value = false;
   } finally {

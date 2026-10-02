@@ -52,6 +52,10 @@ export class UsersService {
           lastLoginAt: true,
           emailVerifiedAt: true,
           createdAt: true,
+          enrollments: {
+            where: { status: 'active' },
+            select: { courseId: true },
+          },
           _count: {
             select: { enrollments: true },
           },
@@ -62,8 +66,18 @@ export class UsersService {
 
     return {
       items: users.map((u) => ({
-        ...u,
+        id: u.id,
+        tenantId: u.tenantId,
+        role: u.role,
+        name: u.name,
+        email: u.email,
+        phone: u.phone,
+        avatarUrl: u.avatarUrl,
+        isActive: u.isActive,
+        lastLoginAt: u.lastLoginAt,
+        createdAt: u.createdAt,
         isPreRegistered: u.lastLoginAt === null && u.emailVerifiedAt === null,
+        enrolledCourseIds: u.enrollments ? u.enrollments.map((e) => e.courseId) : [],
         enrollmentsCount: u._count.enrollments,
       })),
       meta: {
@@ -127,7 +141,8 @@ export class UsersService {
       throw new BadRequestException('E-mail já cadastrado na plataforma');
     }
 
-    const isPreRegistered = Boolean(input.isPreRegistration);
+    const isStudent = (input.role || 'student') === 'student';
+    const isPreRegistered = input.isPreRegistration !== undefined ? Boolean(input.isPreRegistration) : isStudent;
     const password = input.password || (isPreRegistered ? `PreReg_${Date.now()}` : 'Mudar@123');
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -182,6 +197,56 @@ export class UsersService {
     return {
       ...user,
       isPreRegistered,
+    };
+  }
+
+  /**
+   * Admin: Update user's course enrollments
+   */
+  async updateUserCourses(tenantId: string, userId: string, courseIds: string[]) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const validCourseIds = (Array.isArray(courseIds) ? courseIds : []).filter((id) => uuidRegex.test(id));
+
+    const currentEnrollments = await this.prisma.enrollment.findMany({
+      where: { userId, tenantId },
+      select: { id: true, courseId: true },
+    });
+
+    const currentCourseIds = currentEnrollments.map((e) => e.courseId);
+
+    const toRemove = currentEnrollments.filter((e) => !validCourseIds.includes(e.courseId));
+    if (toRemove.length > 0) {
+      await this.prisma.enrollment.deleteMany({
+        where: { id: { in: toRemove.map((e) => e.id) } },
+      });
+    }
+
+    const toAdd = validCourseIds.filter((cId) => !currentCourseIds.includes(cId));
+    for (const cId of toAdd) {
+      await this.prisma.enrollment.create({
+        data: {
+          tenantId,
+          userId,
+          courseId: cId,
+          source: 'admin',
+          status: 'active',
+        },
+      }).catch(() => {});
+    }
+
+    return {
+      success: true,
+      userId,
+      enrolledCourseIds: validCourseIds,
+      enrollmentsCount: validCourseIds.length,
     };
   }
 

@@ -10,7 +10,40 @@
       </NuxtLink>
     </div>
 
-    <template v-if="course">
+    <!-- Course locked for this student -->
+    <div v-else-if="!canAccess" class="max-w-2xl mx-auto my-8 py-12 px-6 bg-white rounded-3xl border border-slate-200 shadow-xl text-center space-y-5 animate-fade-in">
+      <div class="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-3xl shadow-inner">
+        <i class="pi pi-lock"></i>
+      </div>
+      <div>
+        <span class="text-[10px] uppercase font-bold tracking-wider text-amber-800 bg-amber-100 px-3 py-1 rounded-full">
+          Matrícula Não Liberada
+        </span>
+        <h2 class="text-2xl font-black text-slate-900 mt-3">{{ course.title }}</h2>
+        <p class="text-sm text-slate-600 mt-2 max-w-md mx-auto leading-relaxed">
+          Você ainda não possui este curso liberado na sua matrícula. Entre em contato com a coordenação pedagógica para solicitar a liberação do seu acesso.
+        </p>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+        <a
+          :href="getCoordinationWhatsAppLink(course.title)"
+          target="_blank"
+          class="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-emerald-500/25 transition-all"
+        >
+          <i class="pi pi-whatsapp text-sm"></i>
+          <span>Pedir Liberação no WhatsApp</span>
+        </a>
+        <NuxtLink
+          to="/student/courses"
+          class="px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+        >
+          <i class="pi pi-arrow-left text-xs"></i>
+          <span>Voltar aos Meus Cursos</span>
+        </NuxtLink>
+      </div>
+    </div>
+
+    <template v-else-if="course">
       <!-- Breadcrumb -->
       <nav class="flex items-center gap-2 text-xs font-semibold text-slate-500">
         <NuxtLink to="/student" class="hover:text-brand-600 transition-colors">Dashboard</NuxtLink>
@@ -151,19 +184,36 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useCoursesStore } from '~/stores/courses';
+import { useAuthStore } from '~/stores/auth';
 
 definePageMeta({ layout: 'student' });
 
 const route = useRoute();
 const router = useRouter();
 const coursesStore = useCoursesStore();
+const authStore = useAuthStore();
 
 const slug = route.params.slug as string;
 const course = computed(() => coursesStore.getCourseBySlug(slug));
 
 onMounted(() => {
   coursesStore.fetchCourses();
+  authStore.fetchMe();
 });
+
+const canAccess = computed(() => {
+  if (authStore.canAccessAllCourses) return true;
+  if (!course.value) return false;
+  const enrolled = authStore.enrolledCourseIds;
+  return Array.isArray(enrolled) && enrolled.includes(course.value.id);
+});
+
+function getCoordinationWhatsAppLink(courseTitle: string) {
+  const studentName = authStore.user?.name || 'Aluno';
+  const email = authStore.user?.email || '';
+  const message = `Olá, coordenação! Sou o aluno ${studentName} (${email}) e gostaria de solicitar a liberação do curso "${courseTitle}" na minha conta.`;
+  return `https://wa.me/?text=${encodeURIComponent(message)}`;
+}
 
 useHead({
   title: computed(() => `${course.value?.title || 'Curso'} — StudyEAD`),
