@@ -897,6 +897,7 @@ export const useCoursesStore = defineStore('courses', () => {
   return {
     courses, loading, error,
     publishedCourses, allCourses,
+    getCanonicalCourseKey, deduplicateCourses,
     fetchCourses,
     getCourseBySlug, getCourseById,
     addCourse, updateCourse, deleteCourse, togglePublish,

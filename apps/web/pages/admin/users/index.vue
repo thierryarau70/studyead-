@@ -79,11 +79,11 @@
                     class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
                     :class="user.isPreRegistered ? 'bg-amber-100 text-amber-800' : (user.isActive ? 'bg-brand-100 text-brand-700' : 'bg-slate-200 text-slate-500')"
                   >
-                    {{ user.name.charAt(0).toUpperCase() }}
+                    {{ (user.name || 'U').charAt(0).toUpperCase() }}
                   </div>
                   <div>
                     <div class="flex items-center gap-2">
-                      <p class="font-bold text-slate-900">{{ user.name }}</p>
+                      <p class="font-bold text-slate-900">{{ user.name || 'Sem nome' }}</p>
                       <span v-if="user.isPreRegistered" class="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.2 rounded font-bold">
                         Pré-cadastro
                       </span>
@@ -685,7 +685,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useUsersStore } from '~/stores/users';
-import { useCoursesStore } from '~/stores/courses';
+import { useCoursesStore, getCanonicalCourseKey } from '~/stores/courses';
 import type { PlatformUser, UserRole } from '~/stores/users';
 
 definePageMeta({ layout: 'admin' });
@@ -742,20 +742,23 @@ onMounted(() => {
 });
 
 const preRegisteredCount = computed(() => 
-  store.users.filter((u) => u.isPreRegistered || (!u.lastLoginAt && u.role === 'student')).length
+  (store.users || []).filter((u) => u && (u.isPreRegistered || (!u.lastLoginAt && u.role === 'student'))).length
 );
 
-const filteredUsers = computed(() =>
-  store.users.filter((u) => {
-    const matchSearch =
-      !searchQuery.value ||
-      u.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.value.toLowerCase());
+const filteredUsers = computed(() => {
+  const users = store.users || [];
+  const q = (searchQuery.value || '').trim().toLowerCase();
+
+  return users.filter((u) => {
+    if (!u) return false;
+    const nameStr = (u.name || '').toLowerCase();
+    const emailStr = (u.email || '').toLowerCase();
+    const matchSearch = !q || nameStr.includes(q) || emailStr.includes(q);
     const matchRole = !roleFilter.value || u.role === roleFilter.value;
     
     let matchStatus = true;
     if (statusFilter.value === 'active') {
-      matchStatus = u.isActive && !u.isPreRegistered;
+      matchStatus = Boolean(u.isActive && !u.isPreRegistered);
     } else if (statusFilter.value === 'pre_registered') {
       matchStatus = Boolean(u.isPreRegistered || (!u.lastLoginAt && u.role === 'student'));
     } else if (statusFilter.value === 'inactive') {
@@ -763,32 +766,34 @@ const filteredUsers = computed(() =>
     }
 
     return matchSearch && matchRole && matchStatus;
-  }),
-);
+  });
+});
 
 function getUserEnrollmentsCount(user: PlatformUser) {
-  if (user.role !== 'student') return 0;
+  if (!user || user.role !== 'student') return 0;
   const enrolledRaw = user.enrolledCourseIds || [];
   if (enrolledRaw.length === 0) {
     return user.enrollmentsCount || 0;
   }
   const matchedKeys = new Set<string>();
-  for (const course of coursesStore.courses) {
-    const courseCanon = coursesStore.getCanonicalCourseKey(course);
+  const coursesList = coursesStore.courses || [];
+  for (const course of coursesList) {
+    const courseCanon = getCanonicalCourseKey(course);
     const isEnrolled = enrolledRaw.some((rawId) => {
+      if (!rawId) return false;
       if (rawId === course.id || rawId === course.slug) return true;
       if (rawId === 'course-1' || rawId === 'c-1') return courseCanon === 'canonical-enem';
       if (rawId === 'course-2' || rawId === 'c-2') return courseCanon === 'canonical-redacao';
       if (rawId === 'course-3' || rawId === 'c-3') return courseCanon === 'canonical-medicina';
       const cObj = coursesStore.getCourseById(rawId);
-      if (cObj && coursesStore.getCanonicalCourseKey(cObj) === courseCanon) return true;
+      if (cObj && getCanonicalCourseKey(cObj) === courseCanon) return true;
       return false;
     });
     if (isEnrolled) {
       matchedKeys.add(courseCanon);
     }
   }
-  return matchedKeys.size > 0 ? matchedKeys.size : Math.min(enrolledRaw.length, coursesStore.courses.length);
+  return matchedKeys.size > 0 ? matchedKeys.size : Math.min(enrolledRaw.length, coursesList.length);
 }
 
 function openPreRegisterModal() {
@@ -845,19 +850,22 @@ async function handlePreRegister() {
 }
 
 function openManageCoursesModal(user: PlatformUser) {
+  if (!user) return;
   managingCoursesUser.value = user;
   const enrolledRaw = user.enrolledCourseIds || [];
   const matchedIds: string[] = [];
+  const coursesList = coursesStore.courses || [];
 
-  for (const course of coursesStore.courses) {
-    const courseCanon = coursesStore.getCanonicalCourseKey(course);
+  for (const course of coursesList) {
+    const courseCanon = getCanonicalCourseKey(course);
     const isEnrolled = enrolledRaw.some((rawId) => {
+      if (!rawId) return false;
       if (rawId === course.id || rawId === course.slug) return true;
       if (rawId === 'course-1' || rawId === 'c-1') return courseCanon === 'canonical-enem';
       if (rawId === 'course-2' || rawId === 'c-2') return courseCanon === 'canonical-redacao';
       if (rawId === 'course-3' || rawId === 'c-3') return courseCanon === 'canonical-medicina';
       const cObj = coursesStore.getCourseById(rawId);
-      if (cObj && coursesStore.getCanonicalCourseKey(cObj) === courseCanon) return true;
+      if (cObj && getCanonicalCourseKey(cObj) === courseCanon) return true;
       return false;
     });
     if (isEnrolled) {
@@ -866,8 +874,8 @@ function openManageCoursesModal(user: PlatformUser) {
   }
 
   // If student has enrollments recorded or is the demo student, pre-check courses
-  if (matchedIds.length === 0 && (user.enrollmentsCount > 0 || user.email === 'aluno@cursinhoalpha.com.br')) {
-    matchedIds.push(...coursesStore.courses.map((c) => c.id));
+  if (matchedIds.length === 0 && ((user.enrollmentsCount || 0) > 0 || user.email === 'aluno@cursinhoalpha.com.br')) {
+    matchedIds.push(...coursesList.map((c) => c.id));
   }
 
   selectedManagingCourseIds.value = Array.from(new Set(matchedIds));
