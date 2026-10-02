@@ -129,6 +129,7 @@ export interface User {
   lastLoginAt?: Date | string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
+  enrolledCourseIds?: string[];
 }
 
 export interface Course {

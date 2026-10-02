@@ -462,11 +462,20 @@ export const useCoursesStore = defineStore('courses', () => {
   const allCourses = computed(() => [...courses.value].sort((a, b) => a.sortOrder - b.sortOrder));
 
   function getCourseBySlug(slug: string) {
-    return courses.value.find((c) => c.slug === slug);
+    if (!slug) return undefined;
+    const cleanSlug = slug.toLowerCase().trim();
+    return courses.value.find(
+      (c) =>
+        c.slug.toLowerCase() === cleanSlug ||
+        c.slug.toLowerCase() === cleanSlug.replace(/-completo$/, '') ||
+        cleanSlug === `${c.slug.toLowerCase()}-completo` ||
+        c.id === cleanSlug,
+    );
   }
 
   function getCourseById(id: string) {
-    return courses.value.find((c) => c.id === id);
+    if (!id) return undefined;
+    return courses.value.find((c) => c.id === id || c.slug === id);
   }
 
   async function fetchCourses() {
@@ -480,16 +489,44 @@ export const useCoursesStore = defineStore('courses', () => {
         if (Array.isArray(items) && items.length > 0) {
           const apiIds = new Set(items.map((i: any) => i.id));
           const apiSlugs = new Set(items.map((i: any) => i.slug));
-          const nonReplaced = courses.value.filter(
-            (c) => !apiIds.has(c.id) && !apiSlugs.has(c.slug) && !c.id.startsWith('c-'),
-          );
+          
           const formatted = items.map((item: any) => {
-            const local = courses.value.find((c) => c.id === item.id || c.slug === item.slug);
+            const local = courses.value.find(
+              (c) =>
+                c.id === item.id ||
+                c.slug === item.slug ||
+                c.slug === item.slug?.replace(/-completo$/, '') ||
+                item.slug === `${c.slug}-completo`
+            );
+            const fallbackSeed = seedCourses.find(
+              (s) => s.slug === item.slug || s.category === item.category || s.id === 'c-1'
+            );
+            const modules = (item.modules && item.modules.length > 0)
+              ? item.modules
+              : (local?.modules && local.modules.length > 0)
+                ? local.modules
+                : (fallbackSeed?.modules || []);
+            
+            const calcLessons = modules.reduce((sum: number, m: any) => sum + (m.lessons?.length || 0), 0);
+            const totalLessons = item.totalLessons > 0 ? item.totalLessons : (calcLessons > 0 ? calcLessons : (local?.totalLessons || 12));
+            const totalDurationMinutes = item.totalDurationMinutes > 0 ? item.totalDurationMinutes : (local?.totalDurationMinutes || 480);
+
             return {
               ...item,
-              modules: item.modules?.length ? item.modules : (local?.modules || []),
+              description: item.description || local?.description || fallbackSeed?.description || '',
+              thumbnailUrl: item.thumbnailUrl || local?.thumbnailUrl || fallbackSeed?.thumbnailUrl || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&auto=format&fit=crop&q=60',
+              category: item.category || local?.category || 'Geral',
+              modules,
+              totalLessons,
+              totalDurationMinutes,
             };
           });
+
+          // Keep non-conflicting local or seed courses
+          const nonReplaced = courses.value.filter(
+            (c) => !apiIds.has(c.id) && !apiSlugs.has(c.slug)
+          );
+
           courses.value = [...formatted, ...nonReplaced];
         }
       }

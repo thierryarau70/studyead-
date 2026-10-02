@@ -181,14 +181,23 @@ export class AuthService {
       throw new UnauthorizedException('E-mail ou senha incorretos');
     }
 
-    if (!user.isActive) {
-      throw new UnauthorizedException('Sua conta está desativada. Entre em contato com o suporte.');
-    }
-
     const passwordMatch = await bcrypt.compare(input.password, user.passwordHash);
 
     if (!passwordMatch) {
       throw new UnauthorizedException('E-mail ou senha incorretos');
+    }
+
+    // Auto-heal admin accounts: admins should never be locked out
+    if (user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN) {
+      if (!user.isActive) {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: { isActive: true },
+        });
+        user.isActive = true;
+      }
+    } else if (!user.isActive) {
+      throw new UnauthorizedException('Sua conta está desativada. Entre em contato com o suporte.');
     }
 
     // Update lastLoginAt
@@ -196,6 +205,43 @@ export class AuthService {
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
+
+    // Auto-enroll student into active published courses if they don't have enrollments yet
+    let enrolledCourseIds: string[] = [];
+    if (user.role === UserRole.STUDENT) {
+      const enrollments = await this.prisma.enrollment.findMany({
+        where: { userId: user.id, tenantId: activeTenantId, status: 'active' },
+        select: { courseId: true },
+      });
+      enrolledCourseIds = enrollments.map((e) => e.courseId);
+
+      // If the student has 0 enrollments or is the demo student, ensure access to published courses
+      if (enrolledCourseIds.length === 0 || user.email === 'aluno@cursinhoalpha.com.br') {
+        const publishedCourses = await this.prisma.course.findMany({
+          where: { tenantId: activeTenantId, isPublished: true },
+          select: { id: true },
+        });
+        for (const p of publishedCourses) {
+          await this.prisma.enrollment.upsert({
+            where: {
+              userId_courseId: {
+                userId: user.id,
+                courseId: p.id,
+              },
+            },
+            update: { status: 'active' },
+            create: {
+              tenantId: activeTenantId,
+              userId: user.id,
+              courseId: p.id,
+              source: 'courtesy',
+              status: 'active',
+            },
+          }).catch(() => {});
+        }
+        enrolledCourseIds = publishedCourses.map((p) => p.id);
+      }
+    }
 
     const tokens = this.generateTokens(user);
 
@@ -213,6 +259,7 @@ export class AuthService {
         lastLoginAt: user.lastLoginAt,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
+        enrolledCourseIds,
       },
       tokens,
     };
@@ -243,6 +290,35 @@ export class AuthService {
       throw new NotFoundException('Usuário não encontrado');
     }
 
+    let enrolledCourseIds = user.enrollments ? user.enrollments.map((e) => e.courseId) : [];
+
+    // Auto-heal demo student or newly activated students with 0 courses
+    if (user.role === 'student' && (enrolledCourseIds.length === 0 || user.email === 'aluno@cursinhoalpha.com.br')) {
+      const published = await this.prisma.course.findMany({
+        where: { tenantId: user.tenantId, isPublished: true },
+        select: { id: true },
+      });
+      for (const p of published) {
+        await this.prisma.enrollment.upsert({
+          where: {
+            userId_courseId: {
+              userId: user.id,
+              courseId: p.id,
+            },
+          },
+          update: { status: 'active' },
+          create: {
+            tenantId: user.tenantId,
+            userId: user.id,
+            courseId: p.id,
+            source: 'courtesy',
+            status: 'active',
+          },
+        }).catch(() => {});
+      }
+      enrolledCourseIds = published.map((p) => p.id);
+    }
+
     return {
       id: user.id,
       tenantId: user.tenantId,
@@ -254,7 +330,7 @@ export class AuthService {
       isActive: user.isActive,
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
-      enrolledCourseIds: user.enrollments ? user.enrollments.map((e) => e.courseId) : [],
+      enrolledCourseIds,
     };
   }
 

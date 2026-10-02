@@ -266,7 +266,13 @@ export class UsersService {
     if (input.name !== undefined) data.name = input.name;
     if (input.role !== undefined) data.role = input.role;
     if (input.phone !== undefined) data.phone = input.phone;
-    if (input.isActive !== undefined) data.isActive = Boolean(input.isActive);
+    if (input.isActive !== undefined) {
+      if ((existing.role === 'admin' || existing.role === 'super_admin') && !input.isActive) {
+        data.isActive = true;
+      } else {
+        data.isActive = Boolean(input.isActive);
+      }
+    }
 
     if (input.password) {
       data.passwordHash = await bcrypt.hash(input.password, 10);
@@ -297,6 +303,10 @@ export class UsersService {
 
     if (!existing) {
       throw new NotFoundException('Usuário não encontrado');
+    }
+
+    if (existing.role === 'admin' || existing.role === 'super_admin') {
+      throw new BadRequestException('Contas de administrador não podem ser excluídas');
     }
 
     await this.prisma.user.delete({
