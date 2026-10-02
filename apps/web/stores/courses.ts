@@ -478,18 +478,19 @@ export const useCoursesStore = defineStore('courses', () => {
         const res: any = await $api('/courses?limit=100');
         const items = res?.data?.items || res?.data || res?.items;
         if (Array.isArray(items) && items.length > 0) {
-          // Sincroniza cursos retornados da API
-          for (const item of items) {
-            const existingIdx = courses.value.findIndex((c) => c.id === item.id || c.slug === item.slug);
-            if (existingIdx !== -1) {
-              courses.value[existingIdx] = { ...courses.value[existingIdx], ...item };
-            } else {
-              courses.value.push({
-                ...item,
-                modules: item.modules || [],
-              });
-            }
-          }
+          const apiIds = new Set(items.map((i: any) => i.id));
+          const apiSlugs = new Set(items.map((i: any) => i.slug));
+          const nonReplaced = courses.value.filter(
+            (c) => !apiIds.has(c.id) && !apiSlugs.has(c.slug) && !c.id.startsWith('c-'),
+          );
+          const formatted = items.map((item: any) => {
+            const local = courses.value.find((c) => c.id === item.id || c.slug === item.slug);
+            return {
+              ...item,
+              modules: item.modules?.length ? item.modules : (local?.modules || []),
+            };
+          });
+          courses.value = [...formatted, ...nonReplaced];
         }
       }
     } catch (err: any) {

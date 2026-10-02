@@ -195,14 +195,11 @@ export const useQuestionsStore = defineStore('questions', () => {
         const res: any = await $api(url);
         const items = res?.data?.items || res?.data || res?.items;
         if (Array.isArray(items) && items.length > 0) {
-          for (const item of items) {
-            const existingIdx = questions.value.findIndex((q) => q.id === item.id);
-            if (existingIdx !== -1) {
-              questions.value[existingIdx] = { ...questions.value[existingIdx], ...item };
-            } else {
-              questions.value.push(item);
-            }
-          }
+          const apiIds = new Set(items.map((i: any) => i.id));
+          const nonReplaced = questions.value.filter(
+            (q) => !apiIds.has(q.id) && !q.id.startsWith('q-'),
+          );
+          questions.value = [...items, ...nonReplaced];
         }
       }
     } catch (err: any) {

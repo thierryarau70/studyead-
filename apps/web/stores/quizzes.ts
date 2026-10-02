@@ -147,30 +147,27 @@ export const useQuizzesStore = defineStore('quizzes', () => {
         }
 
         if (Array.isArray(items) && items.length > 0) {
-          for (const item of items) {
-            const existingIdx = quizzes.value.findIndex((q) => q.id === item.id);
-            const formattedQuiz: Quiz = {
-              id: item.id,
-              title: item.title,
-              description: item.description || '',
-              timeLimitMinutes: item.timeLimitMinutes || 60,
-              maxAttempts: item.maxAttempts || 3,
-              shuffleQuestions: Boolean(item.shuffleQuestions),
-              shuffleOptions: Boolean(item.shuffleOptions),
-              showAnswersAfter: item.showAnswersAfter || 'submission',
-              isPublished: Boolean(item.isPublished),
-              courseId: item.courseId,
-              questionIds: item.questionIds || [],
-              attemptsCount: item.attemptsCount || 0,
-              category: item.category || 'Geral',
-              createdAt: item.createdAt ? item.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
-            };
-            if (existingIdx !== -1) {
-              quizzes.value[existingIdx] = { ...quizzes.value[existingIdx], ...formattedQuiz };
-            } else {
-              quizzes.value.push(formattedQuiz);
-            }
-          }
+          const apiIds = new Set(items.map((i: any) => i.id));
+          const nonReplaced = quizzes.value.filter(
+            (q) => !apiIds.has(q.id) && !q.id.startsWith('sim-'),
+          );
+          const formatted = items.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            description: item.description || '',
+            timeLimitMinutes: item.timeLimitMinutes || 60,
+            maxAttempts: item.maxAttempts || 3,
+            shuffleQuestions: Boolean(item.shuffleQuestions),
+            shuffleOptions: Boolean(item.shuffleOptions),
+            showAnswersAfter: item.showAnswersAfter || 'submission',
+            isPublished: Boolean(item.isPublished),
+            courseId: item.courseId,
+            questionIds: item.questionIds || [],
+            attemptsCount: item.attemptsCount || 0,
+            category: item.category || 'Geral',
+            createdAt: item.createdAt ? item.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+          }));
+          quizzes.value = [...formatted, ...nonReplaced];
         }
       }
     } catch (err: any) {
