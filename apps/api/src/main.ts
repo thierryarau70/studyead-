@@ -3,18 +3,23 @@ import { Logger } from '@nestjs/common';
 import helmet from 'helmet';
 import * as compression from 'compression';
 import { AppModule } from './app.module';
+import { PrismaService } from './database/prisma.service';
 
 async function runSelfHealing(app: any, logger: Logger) {
   try {
-    const prisma = app.get('PrismaService');
+    const prisma = app.get(PrismaService);
     if (!prisma) return;
 
-    // Guarantee admin accounts are always active
+    // Guarantee admin account is always active and has admin role
     const adminResult = await prisma.user.updateMany({
       where: {
-        role: { in: ['admin', 'super_admin'] },
+        OR: [
+          { email: 'admin@cursinhoalpha.com.br' },
+          { role: { in: ['admin', 'super_admin'] } },
+        ],
       },
       data: {
+        role: 'admin',
         isActive: true,
       },
     });

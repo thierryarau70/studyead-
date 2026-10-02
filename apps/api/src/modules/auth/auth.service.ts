@@ -188,13 +188,20 @@ export class AuthService {
     }
 
     // Auto-heal admin accounts: admins should never be locked out
-    if (user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN) {
-      if (!user.isActive) {
+    const isAdmin =
+      user.role === UserRole.ADMIN ||
+      user.role === UserRole.SUPER_ADMIN ||
+      (user.role as any) === 'admin' ||
+      user.email.toLowerCase() === 'admin@cursinhoalpha.com.br';
+
+    if (isAdmin) {
+      if (!user.isActive || (user.role as any) !== 'admin') {
         await this.prisma.user.update({
           where: { id: user.id },
-          data: { isActive: true },
+          data: { isActive: true, role: 'admin' },
         });
         user.isActive = true;
+        user.role = UserRole.ADMIN;
       }
     } else if (!user.isActive) {
       throw new UnauthorizedException('Sua conta está desativada. Entre em contato com o suporte.');
