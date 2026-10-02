@@ -50,6 +50,7 @@ export class UsersService {
           avatarUrl: true,
           isActive: true,
           lastLoginAt: true,
+          emailVerifiedAt: true,
           createdAt: true,
           _count: {
             select: { enrollments: true },
@@ -62,6 +63,7 @@ export class UsersService {
     return {
       items: users.map((u) => ({
         ...u,
+        isPreRegistered: u.lastLoginAt === null && u.emailVerifiedAt === null,
         enrollmentsCount: u._count.enrollments,
       })),
       meta: {
@@ -111,11 +113,12 @@ export class UsersService {
    * Admin: Create new user
    */
   async createUser(tenantId: string, input: any) {
+    const cleanEmail = input.email.toLowerCase().trim();
     const existing = await this.prisma.user.findUnique({
       where: {
         tenantId_email: {
           tenantId,
-          email: input.email.toLowerCase().trim(),
+          email: cleanEmail,
         },
       },
     });
@@ -124,18 +127,21 @@ export class UsersService {
       throw new BadRequestException('E-mail já cadastrado na plataforma');
     }
 
-    const password = input.password || 'Mudar@123';
+    const isPreRegistered = Boolean(input.isPreRegistration);
+    const password = input.password || (isPreRegistered ? `PreReg_${Date.now()}` : 'Mudar@123');
     const passwordHash = await bcrypt.hash(password, 10);
 
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
         tenantId,
-        name: input.name,
-        email: input.email.toLowerCase().trim(),
+        name: input.name?.trim(),
+        email: cleanEmail,
         passwordHash,
         role: input.role || 'student',
-        phone: input.phone,
+        phone: input.phone || null,
         isActive: input.isActive !== undefined ? Boolean(input.isActive) : true,
+        emailVerifiedAt: isPreRegistered ? null : new Date(),
+        lastLoginAt: null,
       },
       select: {
         id: true,
@@ -144,9 +150,39 @@ export class UsersService {
         role: true,
         phone: true,
         isActive: true,
+        lastLoginAt: true,
+        emailVerifiedAt: true,
         createdAt: true,
       },
     });
+
+    // Optionally enroll into initial courses immediately
+    if (Array.isArray(input.courseIds) && input.courseIds.length > 0) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const validCourseIds = input.courseIds.filter((cId: string) => uuidRegex.test(cId));
+      if (validCourseIds.length > 0) {
+        const validCourses = await this.prisma.course.findMany({
+          where: { id: { in: validCourseIds }, tenantId },
+          select: { id: true },
+        });
+        for (const course of validCourses) {
+          await this.prisma.enrollment.create({
+            data: {
+              tenantId,
+              userId: user.id,
+              courseId: course.id,
+              source: 'admin',
+              status: 'active',
+            },
+          }).catch(() => {});
+        }
+      }
+    }
+
+    return {
+      ...user,
+      isPreRegistered,
+    };
   }
 
   /**

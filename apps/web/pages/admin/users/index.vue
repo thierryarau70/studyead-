@@ -5,15 +5,24 @@
         <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Alunos & Usuários</h1>
         <p class="text-sm text-slate-500">
           {{ store.users.length }} cadastros ·
-          <span class="text-emerald-600 font-semibold">{{ store.totalActive }} ativos</span>
+          <span class="text-emerald-600 font-semibold">{{ store.totalActive }} ativos</span> ·
+          <span class="text-amber-600 font-semibold">{{ preRegisteredCount }} pré-cadastros</span>
         </p>
       </div>
-      <button
-        @click="openCreateModal"
-        class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow-lg shadow-brand-600/25 transition-all flex items-center gap-2 self-start sm:self-auto cursor-pointer"
-      >
-        <i class="pi pi-user-plus"></i> Novo Usuário
-      </button>
+      <div class="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+        <button
+          @click="openPreRegisterModal"
+          class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold shadow-lg shadow-emerald-600/25 transition-all flex items-center gap-2 cursor-pointer"
+        >
+          <i class="pi pi-bolt"></i> Pré-Cadastrar Aluno
+        </button>
+        <button
+          @click="openCreateModal"
+          class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer"
+        >
+          <i class="pi pi-user-plus"></i> Novo Usuário
+        </button>
+      </div>
     </div>
 
     <!-- Filter -->
@@ -43,6 +52,7 @@
       >
         <option value="">Todos os Status</option>
         <option value="active">Ativos</option>
+        <option value="pre_registered">Pré-Cadastro (Aguardando)</option>
         <option value="inactive">Inativos</option>
       </select>
     </div>
@@ -67,12 +77,17 @@
                 <div class="flex items-center gap-3">
                   <div
                     class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
-                    :class="user.isActive ? 'bg-brand-100 text-brand-700' : 'bg-slate-200 text-slate-500'"
+                    :class="user.isPreRegistered ? 'bg-amber-100 text-amber-800' : (user.isActive ? 'bg-brand-100 text-brand-700' : 'bg-slate-200 text-slate-500')"
                   >
                     {{ user.name.charAt(0).toUpperCase() }}
                   </div>
                   <div>
-                    <p class="font-bold text-slate-900">{{ user.name }}</p>
+                    <div class="flex items-center gap-2">
+                      <p class="font-bold text-slate-900">{{ user.name }}</p>
+                      <span v-if="user.isPreRegistered" class="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.2 rounded font-bold">
+                        Pré-cadastro
+                      </span>
+                    </div>
                     <p class="text-xs text-slate-400">{{ user.email }}</p>
                     <p v-if="user.phone" class="text-[11px] text-slate-400">{{ user.phone }}</p>
                   </div>
@@ -90,25 +105,47 @@
                   <option value="admin">Admin</option>
                 </select>
               </td>
-              <td class="p-4 text-xs text-slate-600 font-semibold">{{ user.enrollmentsCount }} matrícula(s)</td>
-              <td class="p-4 text-xs text-slate-400">{{ user.lastLoginAt || 'Nunca' }}</td>
+              <td class="p-4 text-xs text-slate-600 font-semibold">{{ user.enrollmentsCount }} curso(s)</td>
+              <td class="p-4 text-xs text-slate-400">
+                <span v-if="user.isPreRegistered" class="text-amber-600 font-semibold">Aguardando ativação</span>
+                <span v-else>{{ user.lastLoginAt || 'Nunca' }}</span>
+              </td>
               <td class="p-4">
-                <button
-                  @click="store.toggleActive(user.id)"
-                  :class="[
-                    'px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer',
-                    user.isActive
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
-                      : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200'
-                  ]"
-                  :title="user.isActive ? 'Clique para desativar conta' : 'Clique para ativar conta'"
-                >
-                  <span :class="['w-1.5 h-1.5 rounded-full', user.isActive ? 'bg-emerald-500' : 'bg-slate-400']"></span>
-                  {{ user.isActive ? 'Ativo' : 'Inativo' }}
-                </button>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span
+                    v-if="user.isPreRegistered"
+                    class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5"
+                    title="Aguardando o aluno definir a senha e ativar"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                    Aguardando Ativação
+                  </span>
+                  <button
+                    v-else
+                    @click="store.toggleActive(user.id)"
+                    :class="[
+                      'px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer',
+                      user.isActive
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                        : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200'
+                    ]"
+                    :title="user.isActive ? 'Clique para desativar conta' : 'Clique para ativar conta'"
+                  >
+                    <span :class="['w-1.5 h-1.5 rounded-full', user.isActive ? 'bg-emerald-500' : 'bg-slate-400']"></span>
+                    {{ user.isActive ? 'Ativo' : 'Inativo' }}
+                  </button>
+                </div>
               </td>
               <td class="p-4 text-right">
-                <div class="flex items-center justify-end gap-2">
+                <div class="flex items-center justify-end gap-1.5">
+                  <button
+                    v-if="user.isPreRegistered || (!user.lastLoginAt && user.role === 'student')"
+                    @click="openActivationLinkModal(user)"
+                    class="p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors text-xs cursor-pointer"
+                    title="Copiar link de ativação / Enviar WhatsApp"
+                  >
+                    <i class="pi pi-send"></i>
+                  </button>
                   <button
                     @click="openEditModal(user)"
                     class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors text-xs cursor-pointer"
@@ -135,9 +172,187 @@
       </div>
     </div>
 
-    <!-- ─── Create User Modal ─── -->
+    <!-- ─── Pre-Register Student Modal ─── -->
+    <div v-if="showPreRegisterModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 animate-fade-in max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+              <i class="pi pi-bolt text-lg"></i>
+            </div>
+            <div>
+              <h3 class="text-lg font-extrabold text-slate-900">Pré-Cadastrar Aluno</h3>
+              <p class="text-xs text-slate-400">O aluno só precisará definir a senha no link</p>
+            </div>
+          </div>
+          <button @click="showPreRegisterModal = false" class="text-slate-400 hover:text-slate-600">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+
+        <form @submit.prevent="handlePreRegister" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Nome Completo do Aluno *</label>
+            <input
+              v-model="preRegForm.name"
+              type="text"
+              required
+              placeholder="Ex: Beatriz Albuquerque"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 bg-slate-50"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">E-mail do Aluno *</label>
+            <input
+              v-model="preRegForm.email"
+              type="email"
+              required
+              placeholder="beatriz@gmail.com"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 bg-slate-50"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">WhatsApp / Telefone (Opcional)</label>
+            <input
+              v-model="preRegForm.phone"
+              type="tel"
+              placeholder="(11) 98765-4321"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 bg-slate-50"
+            />
+            <p class="text-[11px] text-slate-400 mt-0.5">Usado para enviar o link de ativação com um clique pelo WhatsApp.</p>
+          </div>
+
+          <!-- Courses Selection -->
+          <div class="space-y-2 pt-1">
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Liberar Cursos Imediatamente (Matrícula)
+            </label>
+            <div class="space-y-1.5 max-h-40 overflow-y-auto border border-slate-100 rounded-xl p-2 bg-slate-50">
+              <label 
+                v-for="course in coursesStore.courses" 
+                :key="course.id"
+                class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white cursor-pointer transition-colors"
+              >
+                <input 
+                  type="checkbox" 
+                  :value="course.id"
+                  v-model="preRegForm.selectedCourseIds"
+                  class="rounded text-emerald-600 focus:ring-emerald-500"
+                />
+                <span class="text-xs font-medium text-slate-800 flex-1 truncate">{{ course.title }}</span>
+                <span class="text-[10px] text-slate-400">{{ course.category }}</span>
+              </label>
+              <p v-if="coursesStore.courses.length === 0" class="text-xs text-slate-400 p-2 text-center">
+                Nenhum curso cadastrado ainda.
+              </p>
+            </div>
+          </div>
+
+          <div class="p-3 bg-emerald-50/70 border border-emerald-200/60 rounded-xl flex items-start gap-2.5">
+            <i class="pi pi-info-circle text-emerald-600 text-sm mt-0.5 shrink-0"></i>
+            <p class="text-[11px] text-emerald-800 leading-relaxed">
+              O aluno não receberá uma senha provisória padrão. Ao abrir o link de ativação, o sistema reconhece o pré-cadastro e ele cria a própria senha.
+            </p>
+          </div>
+
+          <div class="flex gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              @click="showPreRegisterModal = false"
+              class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              :disabled="saving"
+              class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/25 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <i v-if="saving" class="pi pi-spin pi-spinner"></i>
+              <span>{{ saving ? 'Gerando...' : 'Criar Pré-Cadastro' }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ─── Activation Link Sharing Modal ─── -->
+    <div v-if="showActivationModal && activeActivationUser" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 animate-fade-in">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+              <i class="pi pi-verified text-xl"></i>
+            </div>
+            <div>
+              <h3 class="text-lg font-black text-slate-900">Link de Ativação do Aluno</h3>
+              <p class="text-xs text-slate-500">{{ activeActivationUser.name }} ({{ activeActivationUser.email }})</p>
+            </div>
+          </div>
+          <button @click="showActivationModal = false; activeActivationUser = null" class="text-slate-400 hover:text-slate-600">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+
+        <div class="space-y-3">
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+            Link exclusivo de finalização
+          </label>
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              readonly
+              :value="getActivationLink(activeActivationUser.email)"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-700 bg-slate-50 select-all font-mono"
+            />
+            <button
+              @click="copyActivationLink(activeActivationUser.email)"
+              class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+              :class="copied ? 'bg-emerald-600 text-white' : 'bg-slate-800 hover:bg-slate-900 text-white'"
+            >
+              <i :class="copied ? 'pi pi-check' : 'pi pi-copy'"></i>
+              <span>{{ copied ? 'Copiado!' : 'Copiar' }}</span>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-500">
+            O aluno acessa este link, confere o nome dele e define a senha para entrar imediatamente.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <a
+            :href="getWhatsAppLink(activeActivationUser)"
+            target="_blank"
+            class="py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all"
+          >
+            <i class="pi pi-whatsapp text-sm font-bold"></i>
+            <span>Enviar no WhatsApp</span>
+          </a>
+          <a
+            :href="getEmailLink(activeActivationUser)"
+            class="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition-all"
+          >
+            <i class="pi pi-envelope text-sm"></i>
+            <span>Enviar por E-mail</span>
+          </a>
+        </div>
+
+        <div class="pt-2 text-right">
+          <button
+            @click="showActivationModal = false; activeActivationUser = null"
+            class="px-6 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Create User Modal (Standard) ─── -->
     <div v-if="showCreateModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5">
+      <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 animate-fade-in">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold">
@@ -145,7 +360,7 @@
             </div>
             <div>
               <h3 class="text-lg font-extrabold text-slate-900">Novo Usuário</h3>
-              <p class="text-xs text-slate-400">Cadastre um novo usuário na plataforma</p>
+              <p class="text-xs text-slate-400">Cadastre um administrador, professor ou aluno comum</p>
             </div>
           </div>
           <button @click="showCreateModal = false" class="text-slate-400 hover:text-slate-600">
@@ -219,14 +434,14 @@
             <button
               type="button"
               @click="showCreateModal = false"
-              class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+              class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               :disabled="saving"
-              class="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
+              class="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
             >
               <i v-if="saving" class="pi pi-spin pi-spinner"></i>
               <span>{{ saving ? 'Cadastrando...' : 'Cadastrar Usuário' }}</span>
@@ -238,7 +453,7 @@
 
     <!-- ─── Edit User Modal ─── -->
     <div v-if="showEditModal && editingUser" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5">
+      <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 animate-fade-in">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold">
@@ -298,14 +513,14 @@
             <button
               type="button"
               @click="showEditModal = false; editingUser = null"
-              class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+              class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               :disabled="saving"
-              class="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
+              class="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
             >
               <i v-if="saving" class="pi pi-spin pi-spinner"></i>
               <span>{{ saving ? 'Salvando...' : 'Salvar Alterações' }}</span>
@@ -317,7 +532,7 @@
 
     <!-- ─── Delete confirm modal ─── -->
     <div v-if="userToDelete" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl space-y-4 text-center">
+      <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl space-y-4 text-center animate-fade-in">
         <div class="w-14 h-14 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto text-2xl">
           <i class="pi pi-user-minus"></i>
         </div>
@@ -326,10 +541,10 @@
           <strong>{{ userToDelete.name }}</strong> perderá o acesso permanentemente à plataforma.
         </p>
         <div class="flex gap-3 pt-2">
-          <button @click="userToDelete = null" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition-colors">
+          <button @click="userToDelete = null" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition-colors cursor-pointer">
             Cancelar
           </button>
-          <button @click="doDeleteUser" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md transition-colors">
+          <button @click="doDeleteUser" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md transition-colors cursor-pointer">
             Excluir
           </button>
         </div>
@@ -341,12 +556,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useUsersStore } from '~/stores/users';
+import { useCoursesStore } from '~/stores/courses';
 import type { PlatformUser, UserRole } from '~/stores/users';
 
 definePageMeta({ layout: 'admin' });
 useHead({ title: 'Alunos & Usuários — Admin' });
 
 const store = useUsersStore();
+const coursesStore = useCoursesStore();
+
 const searchQuery = ref('');
 const roleFilter = ref('');
 const statusFilter = ref('');
@@ -354,8 +572,20 @@ const userToDelete = ref<PlatformUser | null>(null);
 
 const showCreateModal = ref(false);
 const showEditModal = ref(false);
+const showPreRegisterModal = ref(false);
+const showActivationModal = ref(false);
+const activeActivationUser = ref<PlatformUser | null>(null);
+
 const editingUser = ref<PlatformUser | null>(null);
 const saving = ref(false);
+const copied = ref(false);
+
+const preRegForm = ref({
+  name: '',
+  email: '',
+  phone: '',
+  selectedCourseIds: [] as string[],
+});
 
 const createForm = ref({
   name: '',
@@ -375,7 +605,12 @@ const editForm = ref({
 
 onMounted(() => {
   store.fetchUsers();
+  coursesStore.fetchCourses();
 });
+
+const preRegisteredCount = computed(() => 
+  store.users.filter((u) => u.isPreRegistered || (!u.lastLoginAt && u.role === 'student')).length
+);
 
 const filteredUsers = computed(() =>
   store.users.filter((u) => {
@@ -384,10 +619,103 @@ const filteredUsers = computed(() =>
       u.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
       u.email.toLowerCase().includes(searchQuery.value.toLowerCase());
     const matchRole = !roleFilter.value || u.role === roleFilter.value;
-    const matchStatus = !statusFilter.value || (statusFilter.value === 'active' ? u.isActive : !u.isActive);
+    
+    let matchStatus = true;
+    if (statusFilter.value === 'active') {
+      matchStatus = u.isActive && !u.isPreRegistered;
+    } else if (statusFilter.value === 'pre_registered') {
+      matchStatus = Boolean(u.isPreRegistered || (!u.lastLoginAt && u.role === 'student'));
+    } else if (statusFilter.value === 'inactive') {
+      matchStatus = !u.isActive;
+    }
+
     return matchSearch && matchRole && matchStatus;
   }),
 );
+
+function openPreRegisterModal() {
+  preRegForm.value = {
+    name: '',
+    email: '',
+    phone: '',
+    selectedCourseIds: coursesStore.courses.map((c) => c.id), // select all by default for convenience
+  };
+  showPreRegisterModal.value = true;
+}
+
+async function handlePreRegister() {
+  if (!preRegForm.value.name.trim() || !preRegForm.value.email.trim()) return;
+  saving.value = true;
+  try {
+    const createdId = await store.createUser({
+      name: preRegForm.value.name.trim(),
+      email: preRegForm.value.email.trim(),
+      phone: preRegForm.value.phone?.trim() || undefined,
+      role: 'student',
+      isActive: true,
+      isPreRegistration: true,
+      courseIds: preRegForm.value.selectedCourseIds,
+    });
+
+    showPreRegisterModal.value = false;
+    
+    // Open the activation link dialog immediately
+    const user = store.getById(createdId) || {
+      id: createdId,
+      name: preRegForm.value.name.trim(),
+      email: preRegForm.value.email.trim(),
+      phone: preRegForm.value.phone?.trim() || '',
+      role: 'student' as UserRole,
+      isActive: true,
+      isPreRegistered: true,
+      createdAt: new Date().toISOString(),
+      enrollmentsCount: preRegForm.value.selectedCourseIds.length,
+    };
+    openActivationLinkModal(user);
+  } finally {
+    saving.value = false;
+  }
+}
+
+function getActivationLink(email: string) {
+  if (process.client) {
+    const origin = window.location.origin;
+    return `${origin}/register?email=${encodeURIComponent(email)}`;
+  }
+  return `/register?email=${encodeURIComponent(email)}`;
+}
+
+function openActivationLinkModal(user: PlatformUser) {
+  activeActivationUser.value = user;
+  copied.value = false;
+  showActivationModal.value = true;
+}
+
+async function copyActivationLink(email: string) {
+  const link = getActivationLink(email);
+  if (navigator?.clipboard) {
+    await navigator.clipboard.writeText(link);
+    copied.value = true;
+    setTimeout(() => {
+      copied.value = false;
+    }, 2500);
+  }
+}
+
+function getWhatsAppLink(user: PlatformUser) {
+  const link = getActivationLink(user.email);
+  const cleanPhone = (user.phone || '').replace(/\D/g, '');
+  const phoneParam = cleanPhone.length >= 10 ? (cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`) : '';
+  const message = `Olá ${user.name}! Seu pré-cadastro no Cursinho foi realizado com sucesso. Para definir sua senha e começar a estudar seus cursos, acesse: ${link}`;
+  return `https://wa.me/${phoneParam}?text=${encodeURIComponent(message)}`;
+}
+
+function getEmailLink(user: PlatformUser) {
+  const link = getActivationLink(user.email);
+  const subject = `Seu acesso ao Cursinho está liberado! Ative sua conta`;
+  const body = `Olá ${user.name},\n\nSeu pré-cadastro foi criado na nossa plataforma de estudos. Para definir sua senha de acesso e liberar seus cursos, clique no link abaixo:\n\n${link}\n\nBons estudos!`;
+  return `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
 
 function openCreateModal() {
   createForm.value = {
@@ -410,6 +738,7 @@ async function handleCreateUser() {
       email: createForm.value.email,
       role: createForm.value.role,
       phone: createForm.value.phone || undefined,
+      password: createForm.value.password,
       isActive: createForm.value.isActive,
     });
     showCreateModal.value = false;

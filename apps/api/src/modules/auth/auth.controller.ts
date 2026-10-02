@@ -1,4 +1,4 @@
-import { Controller, Post, Patch, Body, Get, UsePipes, Headers } from '@nestjs/common';
+import { Controller, Post, Patch, Body, Get, Query, UsePipes, Headers } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -14,6 +14,15 @@ import { JwtPayload } from '@studyead/shared-types';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Public()
+  @Get('check-pre-registration')
+  async checkPreRegistration(
+    @Query('email') email?: string,
+    @Headers('x-tenant-id') tenantId?: string,
+  ) {
+    return this.authService.checkPreRegistration(email, tenantId);
+  }
 
   @Public()
   @Post('register')

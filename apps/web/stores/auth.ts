@@ -60,6 +60,17 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    async checkPreRegistration(email: string) {
+      if (!email || !email.includes('@')) return null;
+      const { $api } = useNuxtApp();
+      try {
+        const response: any = await $api(`/auth/check-pre-registration?email=${encodeURIComponent(email)}`);
+        return response?.data || response;
+      } catch {
+        return null;
+      }
+    },
+
     async fetchMe() {
       if (!this.token) return null;
       const { $api } = useNuxtApp();

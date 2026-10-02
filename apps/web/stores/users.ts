@@ -17,16 +17,17 @@ export interface PlatformUser {
   createdAt: string;
   lastLoginAt?: string;
   enrollmentsCount: number;
+  isPreRegistered?: boolean;
 }
 
 const STORAGE_KEY = 'studyead_users';
 
 const seedUsers: PlatformUser[] = [
-  { id: 'u-1', name: 'Administradora Alpha', email: 'admin@cursinhoalpha.com.br', role: 'admin', isActive: true, createdAt: '2026-01-01', lastLoginAt: '2026-10-01', enrollmentsCount: 0 },
-  { id: 'u-2', name: 'Aluno Teste', email: 'aluno@cursinhoalpha.com.br', role: 'student', isActive: true, createdAt: '2026-02-15', lastLoginAt: '2026-09-30', enrollmentsCount: 2 },
-  { id: 'u-3', name: 'Prof. Carlos Eduardo', email: 'carlos.fisica@cursinhoalpha.com.br', role: 'teacher', isActive: true, createdAt: '2026-01-10', lastLoginAt: '2026-09-28', enrollmentsCount: 0 },
-  { id: 'u-4', name: 'Mariana Silva Costa', email: 'mariana.costa@gmail.com', role: 'student', isActive: true, createdAt: '2026-03-22', lastLoginAt: '2026-09-29', enrollmentsCount: 1 },
-  { id: 'u-5', name: 'Rafael Alves Santos', email: 'rafael.alves@gmail.com', role: 'student', isActive: false, createdAt: '2026-04-10', enrollmentsCount: 1 },
+  { id: 'u-1', name: 'Administradora Alpha', email: 'admin@cursinhoalpha.com.br', role: 'admin', isActive: true, createdAt: '2026-01-01', lastLoginAt: '2026-10-01', enrollmentsCount: 0, isPreRegistered: false },
+  { id: 'u-2', name: 'Aluno Teste', email: 'aluno@cursinhoalpha.com.br', role: 'student', isActive: true, createdAt: '2026-02-15', lastLoginAt: '2026-09-30', enrollmentsCount: 2, isPreRegistered: false },
+  { id: 'u-3', name: 'Prof. Carlos Eduardo', email: 'carlos.fisica@cursinhoalpha.com.br', role: 'teacher', isActive: true, createdAt: '2026-01-10', lastLoginAt: '2026-09-28', enrollmentsCount: 0, isPreRegistered: false },
+  { id: 'u-4', name: 'Mariana Silva Costa', email: 'mariana.costa@gmail.com', role: 'student', isActive: true, createdAt: '2026-03-22', lastLoginAt: '2026-09-29', enrollmentsCount: 1, isPreRegistered: false },
+  { id: 'u-5', name: 'Rafael Alves Santos', email: 'rafael.alves@gmail.com', role: 'student', isActive: false, createdAt: '2026-04-10', enrollmentsCount: 1, isPreRegistered: true },
 ];
 
 function loadInitialUsers(): PlatformUser[] {
@@ -100,6 +101,7 @@ export const useUsersStore = defineStore('users', () => {
               createdAt: item.createdAt ? item.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
               lastLoginAt: item.lastLoginAt ? item.lastLoginAt.split('T')[0] : undefined,
               enrollmentsCount: item.enrollmentsCount || 0,
+              isPreRegistered: item.isPreRegistered ?? (item.lastLoginAt === null && item.emailVerifiedAt === null),
             };
             if (existingIdx !== -1) {
               users.value[existingIdx] = { ...users.value[existingIdx], ...formattedUser };
@@ -120,13 +122,24 @@ export const useUsersStore = defineStore('users', () => {
     return users.value.find((u) => u.id === id);
   }
 
-  async function createUser(data: Omit<PlatformUser, 'id' | 'createdAt' | 'enrollmentsCount'>) {
+  async function createUser(
+    data: Omit<PlatformUser, 'id' | 'createdAt' | 'enrollmentsCount'> & {
+      isPreRegistration?: boolean;
+      courseIds?: string[];
+      password?: string;
+    }
+  ) {
     const tempId = `u-${Date.now()}`;
     const newUser: PlatformUser = {
-      ...data,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      role: data.role,
+      isActive: data.isActive !== undefined ? data.isActive : true,
       id: tempId,
       createdAt: new Date().toISOString().split('T')[0],
-      enrollmentsCount: 0,
+      enrollmentsCount: data.courseIds ? data.courseIds.length : 0,
+      isPreRegistered: data.isPreRegistration ?? false,
     };
     users.value.unshift(newUser);
 
@@ -141,11 +154,17 @@ export const useUsersStore = defineStore('users', () => {
             role: data.role,
             phone: data.phone,
             isActive: Boolean(data.isActive),
+            isPreRegistration: Boolean(data.isPreRegistration),
+            courseIds: data.courseIds,
+            password: data.password,
           },
         });
-        const createdId = res?.data?.id || res?.id;
-        if (createdId) {
-          newUser.id = createdId;
+        const createdUser = res?.data || res;
+        if (createdUser?.id) {
+          newUser.id = createdUser.id;
+          if (createdUser.isPreRegistered !== undefined) {
+            newUser.isPreRegistered = createdUser.isPreRegistered;
+          }
         }
       } catch (err: any) {
         console.warn('API POST /users fallback local:', err?.message);

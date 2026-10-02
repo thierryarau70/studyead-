@@ -33,33 +33,114 @@ export class AuthService {
     );
   }
 
+  async checkPreRegistration(email?: string, tenantId?: string) {
+    if (!email) {
+      return { isPreRegistered: false, alreadyRegistered: false };
+    }
+    const activeTenantId = tenantId || this.defaultTenantId;
+    const cleanEmail = email.toLowerCase().trim();
+
+    const user = await this.prisma.user.findUnique({
+      where: {
+        tenantId_email: {
+          tenantId: activeTenantId,
+          email: cleanEmail,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        lastLoginAt: true,
+        emailVerifiedAt: true,
+        isActive: true,
+      },
+    });
+
+    if (!user) {
+      return { isPreRegistered: false, alreadyRegistered: false };
+    }
+
+    // A user is considered pre-registered if they were created by admin and have never completed password setup (emailVerifiedAt is null and lastLoginAt is null)
+    const isPreRegistered = user.lastLoginAt === null && user.emailVerifiedAt === null;
+
+    return {
+      isPreRegistered,
+      alreadyRegistered: !isPreRegistered,
+      name: user.name,
+      phone: user.phone,
+      email: user.email,
+    };
+  }
+
   async register(input: RegisterInput, tenantId?: string): Promise<AuthUserResponse> {
     const activeTenantId = tenantId || this.defaultTenantId;
+    const cleanEmail = input.email.toLowerCase().trim();
 
     const existing = await this.prisma.user.findUnique({
       where: {
         tenantId_email: {
           tenantId: activeTenantId,
-          email: input.email.toLowerCase(),
+          email: cleanEmail,
         },
       },
     });
 
-    if (existing) {
-      throw new ConflictException('Já existe uma conta cadastrada com este e-mail');
-    }
-
     const passwordHash = await bcrypt.hash(input.password, 12);
+
+    if (existing) {
+      // Check if user was pre-registered (never logged in and emailVerifiedAt is null)
+      const isPreRegistered = existing.lastLoginAt === null && existing.emailVerifiedAt === null;
+      if (isPreRegistered) {
+        // Complete the pre-registration!
+        const updatedUser = await this.prisma.user.update({
+          where: { id: existing.id },
+          data: {
+            name: input.name?.trim() || existing.name,
+            phone: input.phone || existing.phone,
+            passwordHash,
+            emailVerifiedAt: new Date(),
+            lastLoginAt: new Date(),
+            isActive: true,
+          },
+        });
+
+        const tokens = this.generateTokens(updatedUser);
+
+        return {
+          user: {
+            id: updatedUser.id,
+            tenantId: updatedUser.tenantId,
+            role: updatedUser.role as UserRole,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            phone: updatedUser.phone,
+            avatarUrl: updatedUser.avatarUrl,
+            isActive: updatedUser.isActive,
+            emailVerifiedAt: updatedUser.emailVerifiedAt,
+            lastLoginAt: updatedUser.lastLoginAt,
+            createdAt: updatedUser.createdAt,
+            updatedAt: updatedUser.updatedAt,
+          },
+          tokens,
+        };
+      }
+
+      throw new ConflictException('Já existe uma conta ativa cadastrada com este e-mail');
+    }
 
     const user = await this.prisma.user.create({
       data: {
         tenantId: activeTenantId,
         name: input.name,
-        email: input.email.toLowerCase(),
+        email: cleanEmail,
         phone: input.phone || null,
         passwordHash,
         role: UserRole.STUDENT,
         isActive: true,
+        lastLoginAt: new Date(),
+        emailVerifiedAt: new Date(),
       },
     });
 
