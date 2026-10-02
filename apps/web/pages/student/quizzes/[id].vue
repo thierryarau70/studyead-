@@ -305,6 +305,28 @@ const submitQuiz = async () => {
     timeSpentFormatted: `${m}m ${s}s`,
   };
 
+  const attemptRecord = {
+    id: `att-${Date.now()}`,
+    quizId,
+    title: quiz.value?.title || 'Simulado',
+    category: quiz.value?.category || 'Geral',
+    score: percentage,
+    correctCount: correct,
+    totalQuestions: total,
+    timeSpentFormatted: `${m}m ${s}s`,
+    date: new Date().toLocaleDateString('pt-BR'),
+    timestamp: Date.now(),
+  };
+
+  if (process.client) {
+    try {
+      const stored = localStorage.getItem('studyead_quiz_attempts');
+      const list = stored ? JSON.parse(stored) : [];
+      list.unshift(attemptRecord);
+      localStorage.setItem('studyead_quiz_attempts', JSON.stringify(list));
+    } catch {}
+  }
+
   isSubmitted.value = true;
   await quizzesStore.submitQuizAttempt(quizId, userAnswers.value, elapsed);
 

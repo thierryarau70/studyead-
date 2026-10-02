@@ -126,18 +126,116 @@
 
         <!-- Senha -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-            {{ isPreRegistered ? 'Defina sua Senha de Acesso' : 'Senha' }} <span class="text-red-500">*</span>
-          </label>
-          <input
-            v-model="password"
-            type="password"
-            required
-            placeholder="Mínimo 8 caracteres (Ex: Estudo@2026)"
-            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-slate-50/60"
-          />
-          <p class="text-[11px] text-slate-400 mt-1">
-            Recomendado: 8+ caracteres, uma letra maiúscula e um número
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+              {{ isPreRegistered ? 'Defina sua Senha de Acesso' : 'Senha' }} <span class="text-red-500">*</span>
+            </label>
+            <span v-if="password" class="text-[11px] font-bold" :class="passwordStrengthColor">
+              {{ passwordStrengthLabel }}
+            </span>
+          </div>
+          <div class="relative">
+            <input
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              required
+              @blur="passwordTouched = true"
+              placeholder="Mínimo 8 caracteres (Ex: Estudo@2027)"
+              class="w-full pl-4 pr-11 py-3 rounded-xl border text-sm transition-all focus:outline-none focus:ring-2 bg-slate-50/60"
+              :class="[
+                passwordTouched && !isPasswordFullyValid
+                  ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
+                  : passwordTouched && isPasswordFullyValid
+                    ? 'border-emerald-300 focus:border-emerald-500 focus:ring-emerald-200'
+                    : 'border-slate-200 focus:border-brand-500 focus:ring-brand-100'
+              ]"
+            />
+            <button
+              type="button"
+              @click="showPassword = !showPassword"
+              class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer p-1"
+              :title="showPassword ? 'Ocultar senha' : 'Ver senha'"
+            >
+              <i :class="showPassword ? 'pi pi-eye-slash' : 'pi pi-eye'" class="text-sm"></i>
+            </button>
+          </div>
+
+          <!-- Password Strength Bar -->
+          <div v-if="password" class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mt-2">
+            <div
+              class="h-full transition-all duration-300 rounded-full"
+              :class="passwordStrengthBarClass"
+              :style="{ width: `${passwordStrengthPercent}%` }"
+            ></div>
+          </div>
+
+          <!-- Requirements Checklist -->
+          <div class="mt-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1 text-xs">
+            <p class="font-bold text-[11px] text-slate-600 uppercase tracking-wider mb-1">
+              Requisitos de segurança da senha:
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[11px]">
+              <div class="flex items-center gap-1.5" :class="hasMinLength ? 'text-emerald-700 font-semibold' : 'text-slate-400'">
+                <i :class="hasMinLength ? 'pi pi-check text-emerald-600' : 'pi pi-circle text-[10px]'"></i>
+                <span>Mínimo 8 caracteres</span>
+              </div>
+              <div class="flex items-center gap-1.5" :class="hasUppercase ? 'text-emerald-700 font-semibold' : 'text-slate-400'">
+                <i :class="hasUppercase ? 'pi pi-check text-emerald-600' : 'pi pi-circle text-[10px]'"></i>
+                <span>Letra maiúscula (A-Z)</span>
+              </div>
+              <div class="flex items-center gap-1.5" :class="hasLowercase ? 'text-emerald-700 font-semibold' : 'text-slate-400'">
+                <i :class="hasLowercase ? 'pi pi-check text-emerald-600' : 'pi pi-circle text-[10px]'"></i>
+                <span>Letra minúscula (a-z)</span>
+              </div>
+              <div class="flex items-center gap-1.5" :class="hasNumber ? 'text-emerald-700 font-semibold' : 'text-slate-400'">
+                <i :class="hasNumber ? 'pi pi-check text-emerald-600' : 'pi pi-circle text-[10px]'"></i>
+                <span>Pelo menos um número (0-9)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Confirmar Senha -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Confirmar Senha <span class="text-red-500">*</span>
+            </label>
+            <span v-if="confirmPassword && passwordsMatch" class="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+              <i class="pi pi-check text-[10px]"></i> Senhas coincidem
+            </span>
+            <span v-else-if="confirmPassword && !passwordsMatch" class="text-[11px] text-red-600 font-semibold flex items-center gap-1">
+              <i class="pi pi-times text-[10px]"></i> As senhas não coincidem
+            </span>
+          </div>
+          <div class="relative">
+            <input
+              v-model="confirmPassword"
+              :type="showConfirmPassword ? 'text' : 'password'"
+              required
+              @blur="confirmPasswordTouched = true"
+              placeholder="Digite a mesma senha novamente"
+              class="w-full pl-4 pr-11 py-3 rounded-xl border text-sm transition-all focus:outline-none focus:ring-2 bg-slate-50/60"
+              :class="[
+                confirmPasswordTouched && !passwordsMatch
+                  ? 'border-red-300 focus:border-red-500 focus:ring-red-200 bg-red-50/20'
+                  : confirmPasswordTouched && passwordsMatch
+                    ? 'border-emerald-300 focus:border-emerald-500 focus:ring-emerald-200'
+                    : 'border-slate-200 focus:border-brand-500 focus:ring-brand-100'
+              ]"
+            />
+            <button
+              type="button"
+              @click="showConfirmPassword = !showConfirmPassword"
+              class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer p-1"
+              :title="showConfirmPassword ? 'Ocultar senha' : 'Ver senha'"
+            >
+              <i :class="showConfirmPassword ? 'pi pi-eye-slash' : 'pi pi-eye'" class="text-sm"></i>
+            </button>
+          </div>
+          <p v-if="confirmPasswordTouched && !passwordsMatch && confirmPassword" class="text-[11px] text-red-600 font-medium mt-1.5 flex items-center gap-1">
+            <i class="pi pi-times-circle text-[10px]"></i>
+            As senhas digitadas não são iguais. Verifique novamente.
           </p>
         </div>
 
@@ -169,7 +267,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '~/stores/auth';
 import { registerSchema } from '@studyead/validators';
 
@@ -184,12 +282,71 @@ const name = ref('');
 const email = ref('');
 const phone = ref('');
 const password = ref('');
+const confirmPassword = ref('');
+
+const showPassword = ref(false);
+const showConfirmPassword = ref(false);
+
+const passwordTouched = ref(false);
+const confirmPasswordTouched = ref(false);
+
 const errorMessage = ref('');
 const checkingEmail = ref(false);
 const isPreRegistered = ref(false);
 const alreadyRegistered = ref(false);
 const preRegName = ref('');
 const activationSuccess = ref(false);
+
+// Password criteria checks
+const hasMinLength = computed(() => password.value.length >= 8);
+const hasUppercase = computed(() => /[A-Z]/.test(password.value));
+const hasLowercase = computed(() => /[a-z]/.test(password.value));
+const hasNumber = computed(() => /[0-9]/.test(password.value));
+
+const isPasswordFullyValid = computed(() => 
+  hasMinLength.value && hasUppercase.value && hasLowercase.value && hasNumber.value
+);
+
+const passwordsMatch = computed(() => {
+  if (!confirmPassword.value) return false;
+  return password.value === confirmPassword.value;
+});
+
+const passwordStrengthScore = computed(() => {
+  let score = 0;
+  if (hasMinLength.value) score++;
+  if (hasUppercase.value) score++;
+  if (hasLowercase.value) score++;
+  if (hasNumber.value) score++;
+  return score;
+});
+
+const passwordStrengthPercent = computed(() => {
+  return (passwordStrengthScore.value / 4) * 100;
+});
+
+const passwordStrengthLabel = computed(() => {
+  const score = passwordStrengthScore.value;
+  if (score <= 1) return 'Fraca';
+  if (score <= 3) return 'Média';
+  return 'Forte ✓';
+});
+
+const passwordStrengthColor = computed(() => {
+  const score = passwordStrengthScore.value;
+  if (score <= 1) return 'text-red-600';
+  if (score <= 3) return 'text-amber-600';
+  return 'text-emerald-600';
+});
+
+const passwordStrengthBarClass = computed(() => {
+  const score = passwordStrengthScore.value;
+  if (score <= 1) return 'bg-red-500';
+  if (score <= 3) return 'bg-amber-500';
+  return 'bg-emerald-500';
+});
+
+const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 async function checkEmailStatus(emailToCheck: string) {
   if (!emailToCheck || !emailToCheck.includes('@') || emailToCheck.length < 5) return;
@@ -234,6 +391,23 @@ onMounted(() => {
 
 const handleSubmit = async () => {
   errorMessage.value = '';
+  passwordTouched.value = true;
+  confirmPasswordTouched.value = true;
+
+  if (!emailRegex.test(email.value.trim())) {
+    errorMessage.value = 'Digite um endereço de e-mail válido (ex: seuemail@exemplo.com)';
+    return;
+  }
+
+  if (!isPasswordFullyValid.value) {
+    errorMessage.value = 'A senha precisa cumprir todos os 4 requisitos de segurança indicados abaixo.';
+    return;
+  }
+
+  if (password.value !== confirmPassword.value) {
+    errorMessage.value = 'As senhas digitadas não coincidem. Confirme a mesma senha nos dois campos.';
+    return;
+  }
 
   const validation = registerSchema.safeParse({
     name: name.value.trim(),
