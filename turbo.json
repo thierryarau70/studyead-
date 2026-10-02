@@ -1,9 +1,11 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": ["NUXT_PUBLIC_API_URL", "NODE_ENV", "PORT", "DATABASE_URL", "JWT_SECRET"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".output/**", ".next/**"]
+      "outputs": ["dist/**", ".output/**", ".next/**"],
+      "env": ["NUXT_PUBLIC_API_URL", "NODE_ENV"]
     },
     "lint": {
       "dependsOn": ["^build"]
