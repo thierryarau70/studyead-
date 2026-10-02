@@ -149,6 +149,7 @@ export class AuthService {
         phone: true,
         avatarUrl: true,
         isActive: true,
+        lastLoginAt: true,
         createdAt: true,
       },
     });
@@ -158,6 +159,47 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  async updateMe(userId: string, input: { name?: string; phone?: string }) {
+    const data: any = {};
+    if (input.name?.trim()) data.name = input.name.trim();
+    if (input.phone !== undefined) data.phone = input.phone || null;
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        avatarUrl: true,
+        role: true,
+        isActive: true,
+        lastLoginAt: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Usuário não encontrado');
+
+    const match = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!match) {
+      throw new UnauthorizedException('Senha atual incorreta');
+    }
+
+    if (newPassword.length < 8) {
+      throw new UnauthorizedException('A nova senha deve ter pelo menos 8 caracteres');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+
+    return { message: 'Senha alterada com sucesso' };
   }
 
   private generateTokens(user: { id: string; tenantId: string; email: string; role: any }) {

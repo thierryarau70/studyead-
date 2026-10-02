@@ -1,7 +1,19 @@
 <template>
   <div class="min-h-screen flex bg-surface-100 text-surface-900">
+    <!-- Mobile overlay -->
+    <div
+      v-if="sidebarOpen"
+      class="fixed inset-0 bg-black/40 z-30 lg:hidden"
+      @click="sidebarOpen = false"
+    />
+
     <!-- Sidebar -->
-    <aside class="w-64 bg-white border-r border-surface-200 flex flex-col fixed inset-y-0 z-40">
+    <aside
+      :class="[
+        'w-64 bg-white border-r border-surface-200 flex flex-col fixed inset-y-0 z-40 transition-transform duration-300',
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      ]"
+    >
       <!-- Brand -->
       <div class="h-16 px-6 flex items-center gap-3 border-b border-surface-200">
         <div class="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center text-white shadow-sm shadow-brand-600/30">
@@ -11,6 +23,13 @@
           <h1 class="text-sm font-bold text-surface-900 leading-tight">Cursinho Alpha</h1>
           <span class="text-xs text-brand-600 font-medium">Área do Aluno</span>
         </div>
+        <!-- Close button (mobile) -->
+        <button
+          class="ml-auto lg:hidden p-1 text-surface-400 hover:text-surface-700"
+          @click="sidebarOpen = false"
+        >
+          <i class="pi pi-times text-sm"></i>
+        </button>
       </div>
 
       <!-- Navigation -->
@@ -19,6 +38,7 @@
           to="/student"
           class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors"
           :class="$route.path === '/student' ? 'bg-brand-50 text-brand-700 font-semibold' : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900'"
+          @click="sidebarOpen = false"
         >
           <i class="pi pi-th-large text-base"></i>
           Visão Geral
@@ -28,17 +48,29 @@
           to="/student/courses"
           class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors"
           :class="$route.path.startsWith('/student/courses') ? 'bg-brand-50 text-brand-700 font-semibold' : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900'"
+          @click="sidebarOpen = false"
         >
           <i class="pi pi-book text-base"></i>
           Meus Cursos
         </NuxtLink>
 
         <NuxtLink
+          to="/student/questions"
+          class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          :class="$route.path.startsWith('/student/questions') ? 'bg-brand-50 text-brand-700 font-semibold' : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900'"
+          @click="sidebarOpen = false"
+        >
+          <i class="pi pi-list-check text-base"></i>
+          Banco de Questões
+        </NuxtLink>
+
+        <NuxtLink
           to="/student/quizzes"
           class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors"
           :class="$route.path.startsWith('/student/quizzes') ? 'bg-brand-50 text-brand-700 font-semibold' : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900'"
+          @click="sidebarOpen = false"
         >
-          <i class="pi pi-check-circle text-base"></i>
+          <i class="pi pi-clock text-base"></i>
           Simulados & Testes
         </NuxtLink>
 
@@ -46,6 +78,7 @@
           to="/student/progress"
           class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors"
           :class="$route.path === '/student/progress' ? 'bg-brand-50 text-brand-700 font-semibold' : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900'"
+          @click="sidebarOpen = false"
         >
           <i class="pi pi-chart-line text-base"></i>
           Meu Progresso
@@ -56,6 +89,7 @@
             to="/student/profile"
             class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors"
             :class="$route.path === '/student/profile' ? 'bg-brand-50 text-brand-700 font-semibold' : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900'"
+            @click="sidebarOpen = false"
           >
             <i class="pi pi-user text-base"></i>
             Meu Perfil
@@ -87,12 +121,19 @@
     </aside>
 
     <!-- Main Content Area -->
-    <div class="flex-1 ml-64 flex flex-col min-w-0">
+    <div class="flex-1 lg:ml-64 flex flex-col min-w-0">
       <!-- Topbar -->
-      <header class="h-16 bg-white border-b border-surface-200 px-8 flex items-center justify-between sticky top-0 z-30">
-        <div>
-          <h2 class="text-base font-semibold text-surface-800">
-            Bem-vindo(a), <span class="text-brand-600">{{ authStore.user?.name || 'Aluno' }}</span>
+      <header class="h-16 bg-white border-b border-surface-200 px-5 lg:px-8 flex items-center justify-between sticky top-0 z-30">
+        <div class="flex items-center gap-3">
+          <!-- Hamburger (mobile) -->
+          <button
+            class="lg:hidden p-2 rounded-lg text-surface-600 hover:bg-surface-100 transition-colors"
+            @click="sidebarOpen = true"
+          >
+            <i class="pi pi-bars text-base"></i>
+          </button>
+          <h2 class="text-base font-semibold text-surface-800 hidden sm:block">
+            Bem-vindo(a), <span class="text-brand-600">{{ authStore.user?.name?.split(' ')[0] || 'Aluno' }}</span>
           </h2>
         </div>
         <div class="flex items-center gap-4">
@@ -101,13 +142,13 @@
             class="text-xs font-medium text-surface-600 hover:text-brand-600 flex items-center gap-1.5 transition-colors"
           >
             <i class="pi pi-search text-xs"></i>
-            Explorar mais cursos
+            <span class="hidden sm:inline">Explorar cursos</span>
           </NuxtLink>
         </div>
       </header>
 
       <!-- Content -->
-      <main class="flex-1 p-8">
+      <main class="flex-1 p-5 lg:p-8">
         <slot />
       </main>
     </div>
@@ -115,9 +156,11 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import { useAuthStore } from '~/stores/auth';
 
 const authStore = useAuthStore();
+const sidebarOpen = ref(false);
 
 const handleLogout = () => {
   authStore.logout();

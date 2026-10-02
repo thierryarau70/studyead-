@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, UsePipes, Headers } from '@nestjs/common';
+import { Controller, Post, Patch, Body, Get, UsePipes, Headers } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -9,6 +9,7 @@ import {
   RegisterInput,
   LoginInput,
 } from '@studyead/validators';
+import { JwtPayload } from '@studyead/shared-types';
 
 @Controller('auth')
 export class AuthController {
@@ -37,5 +38,21 @@ export class AuthController {
   @Get('me')
   async me(@CurrentUser('sub') userId: string) {
     return this.authService.getMe(userId);
+  }
+
+  @Patch('me')
+  async updateMe(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { name?: string; phone?: string },
+  ) {
+    return this.authService.updateMe(user.sub, body);
+  }
+
+  @Post('change-password')
+  async changePassword(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { currentPassword: string; newPassword: string },
+  ) {
+    return this.authService.changePassword(user.sub, body.currentPassword, body.newPassword);
   }
 }
