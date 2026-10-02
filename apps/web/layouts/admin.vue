@@ -1,17 +1,17 @@
 <template>
-  <div class="min-h-screen flex bg-surface-100 text-surface-900">
-    <!-- Mobile overlay -->
+  <div class="min-h-screen bg-surface-100 text-surface-900 overflow-x-hidden">
+    <!-- Mobile overlay — z-40 cobre o header (z-30) -->
     <div
       v-if="sidebarOpen"
-      class="fixed inset-0 bg-black/50 z-30 lg:hidden"
+      class="fixed inset-0 bg-black/60 z-40 lg:hidden"
       @click="sidebarOpen = false"
     />
 
-    <!-- Admin Sidebar -->
+    <!-- Admin Sidebar — z-50 -->
     <aside
       :class="[
-        'w-64 bg-surface-900 text-surface-200 flex flex-col fixed inset-y-0 z-40 border-r border-surface-800 transition-transform duration-300',
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        'w-64 bg-surface-900 text-surface-200 flex flex-col fixed inset-y-0 z-50 border-r border-surface-800 transition-transform duration-300 ease-in-out',
+        sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
       ]"
     >
       <!-- Brand -->
@@ -151,16 +151,17 @@
     </aside>
 
     <!-- Main Content Area -->
-    <div class="flex-1 lg:ml-64 flex flex-col min-w-0">
-      <!-- Topbar -->
-      <header class="h-16 bg-white border-b border-surface-200 px-5 lg:px-8 flex items-center justify-between sticky top-0 z-30">
+    <div class="lg:ml-64 flex flex-col min-h-screen min-w-0">
+      <!-- Topbar — z-30, fica abaixo do overlay (z-40) quando sidebar abre -->
+      <header class="h-14 sm:h-16 bg-white border-b border-surface-200 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30">
         <div class="flex items-center gap-3">
-          <!-- Hamburger (mobile) -->
+          <!-- Hamburger -->
           <button
-            class="lg:hidden p-2 rounded-lg text-surface-600 hover:bg-surface-100 transition-colors"
+            class="lg:hidden w-9 h-9 flex items-center justify-center rounded-xl text-surface-600 hover:bg-surface-100 transition-colors"
             @click="sidebarOpen = true"
+            aria-label="Abrir menu"
           >
-            <i class="pi pi-bars text-base"></i>
+            <i class="pi pi-bars text-lg"></i>
           </button>
           <span class="hidden sm:flex px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200 items-center gap-1.5">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -180,7 +181,7 @@
       </header>
 
       <!-- Content -->
-      <main class="flex-1 p-5 lg:p-8">
+      <main class="flex-1 p-4 sm:p-6 lg:p-8 overflow-x-hidden">
         <slot />
       </main>
     </div>

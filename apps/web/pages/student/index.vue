@@ -117,39 +117,32 @@
     </div>
 
     <!-- Quick Shortcuts to Quizzes and Questions -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div class="p-6 rounded-3xl bg-gradient-to-br from-slate-900 to-indigo-950 text-white shadow-xl flex items-center justify-between">
-        <div class="space-y-2">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-slate-900 to-indigo-950 text-white shadow-xl overflow-hidden relative">
+        <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-purple-500/20 rounded-full blur-xl pointer-events-none"></div>
+        <div class="relative space-y-2.5">
           <span class="text-xs font-bold uppercase tracking-wider text-purple-300">Treinamento Oficial</span>
-          <h3 class="text-lg font-black">Simulados Cronometrados</h3>
-          <p class="text-xs text-slate-300 max-w-sm">Treine com tempo real do exame e receba nota e análise de desempenho.</p>
-          <div class="pt-2">
-            <NuxtLink to="/student/quizzes" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-colors">
-              Ir para Simulados <i class="pi pi-arrow-right text-[10px]"></i>
-            </NuxtLink>
-          </div>
-        </div>
-        <div class="hidden sm:flex w-20 h-20 rounded-2xl bg-white/10 items-center justify-center text-4xl text-purple-300">
-          <i class="pi pi-clock"></i>
+          <h3 class="text-base font-black">Simulados Cronometrados</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">Treine com tempo real do exame e receba nota e análise de desempenho.</p>
+          <NuxtLink to="/student/quizzes" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-colors">
+            Ir para Simulados <i class="pi pi-arrow-right text-[10px]"></i>
+          </NuxtLink>
         </div>
       </div>
 
-      <div class="p-6 rounded-3xl bg-gradient-to-br from-slate-900 to-brand-950 text-white shadow-xl flex items-center justify-between">
-        <div class="space-y-2">
+      <div class="p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-slate-900 to-brand-950 text-white shadow-xl overflow-hidden relative">
+        <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-brand-500/20 rounded-full blur-xl pointer-events-none"></div>
+        <div class="relative space-y-2.5">
           <span class="text-xs font-bold uppercase tracking-wider text-brand-300">Prática Diária</span>
-          <h3 class="text-lg font-black">Banco de Questões</h3>
-          <p class="text-xs text-slate-300 max-w-sm">Resolva questões comentadas pelos professores com gabarito instantâneo.</p>
-          <div class="pt-2">
-            <NuxtLink to="/student/questions" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-colors">
-              Praticar Questões <i class="pi pi-arrow-right text-[10px]"></i>
-            </NuxtLink>
-          </div>
-        </div>
-        <div class="hidden sm:flex w-20 h-20 rounded-2xl bg-white/10 items-center justify-center text-4xl text-brand-300">
-          <i class="pi pi-check-square"></i>
+          <h3 class="text-base font-black">Banco de Questões</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">Resolva questões comentadas pelos professores com gabarito instantâneo.</p>
+          <NuxtLink to="/student/questions" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-colors">
+            Praticar Questões <i class="pi pi-arrow-right text-[10px]"></i>
+          </NuxtLink>
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
