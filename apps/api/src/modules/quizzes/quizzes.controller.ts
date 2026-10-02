@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { QuizzesService } from './quizzes.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtPayload, UserRole } from '@studyead/shared-types';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
@@ -31,6 +32,7 @@ export class QuizzesController {
   /**
    * List active published quizzes / simulados
    */
+  @Public()
   @Get()
   async getQuizzes(@CurrentUser() user?: JwtPayload) {
     const tenantId = user?.tenantId || '00000000-0000-0000-0000-000000000001';
@@ -40,6 +42,7 @@ export class QuizzesController {
   /**
    * Get single quiz details and questions for starting attempt
    */
+  @Public()
   @Get(':id')
   async getQuizById(
     @Param('id') quizId: string,

@@ -25,6 +25,13 @@ export class QuizzesService {
         course: {
           select: { id: true, title: true, slug: true },
         },
+        quizQuestions: {
+          select: { questionId: true, sortOrder: true },
+          orderBy: { sortOrder: 'asc' },
+        },
+        _count: {
+          select: { quizAttempts: true },
+        },
       },
     });
 
@@ -49,6 +56,8 @@ export class QuizzesService {
 
     return quizzes.map((q) => ({
       ...q,
+      attemptsCount: q._count.quizAttempts,
+      questionIds: q.quizQuestions.map((qq) => qq.questionId),
       userAttempts: userAttemptsMap[q.id] || [],
     }));
   }
@@ -195,7 +204,10 @@ export class QuizzesService {
    * Admin: Create Quiz
    */
   async createQuiz(tenantId: string, input: any) {
-    const questionIds = Array.isArray(input.questionIds) ? input.questionIds : [];
+    const rawQuestionIds = Array.isArray(input.questionIds) ? input.questionIds : [];
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const questionIds = rawQuestionIds.filter((qId: string) => uuidRegex.test(qId));
+
     const validQuestions = questionIds.length > 0
       ? await this.prisma.question.findMany({
           where: { id: { in: questionIds } },
@@ -210,6 +222,8 @@ export class QuizzesService {
         sortOrder: idx,
       }));
 
+    const courseId = input.courseId && uuidRegex.test(input.courseId) ? input.courseId : null;
+
     return this.prisma.quiz.create({
       data: {
         tenantId,
@@ -222,7 +236,7 @@ export class QuizzesService {
         showAnswersAfter: input.showAnswersAfter || 'submission',
         startsAt: input.startsAt ? new Date(input.startsAt) : null,
         endsAt: input.endsAt ? new Date(input.endsAt) : null,
-        courseId: input.courseId || null,
+        courseId,
         questionCount: toCreate.length,
         isPublished: input.isPublished !== undefined ? Boolean(input.isPublished) : true,
         quizQuestions: {
@@ -284,20 +298,25 @@ export class QuizzesService {
     if (input.shuffleOptions !== undefined) data.shuffleOptions = Boolean(input.shuffleOptions);
     if (input.showAnswersAfter !== undefined) data.showAnswersAfter = input.showAnswersAfter;
     if (input.isPublished !== undefined) data.isPublished = Boolean(input.isPublished);
-    if (input.courseId !== undefined) data.courseId = input.courseId;
+    if (input.courseId !== undefined) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      data.courseId = input.courseId && uuidRegex.test(input.courseId) ? input.courseId : null;
+    }
 
     if (Array.isArray(input.questionIds)) {
       await this.prisma.quizQuestion.deleteMany({
         where: { quizId },
       });
-      const validQuestions = input.questionIds.length > 0
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const validUuidQuestionIds = input.questionIds.filter((qId: string) => uuidRegex.test(qId));
+      const validQuestions = validUuidQuestionIds.length > 0
         ? await this.prisma.question.findMany({
-            where: { id: { in: input.questionIds } },
+            where: { id: { in: validUuidQuestionIds } },
             select: { id: true },
           })
         : [];
       const validIds = new Set(validQuestions.map((q) => q.id));
-      const toCreate = input.questionIds
+      const toCreate = validUuidQuestionIds
         .filter((qId: string) => validIds.has(qId))
         .map((qId: string, idx: number) => ({
           quizId,

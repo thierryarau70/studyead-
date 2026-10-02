@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { QuestionsService } from './questions.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtPayload, UserRole, QuestionDifficulty } from '@studyead/shared-types';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
@@ -27,6 +28,7 @@ export class QuestionsController {
   /**
    * List questions with search & subject filters
    */
+  @Public()
   @Get()
   async getQuestions(
     @Query('subject') subject?: string,
@@ -79,6 +81,7 @@ export class QuestionsController {
   /**
    * Get question by ID
    */
+  @Public()
   @Get(':id')
   async getQuestion(
     @Param('id') questionId: string,

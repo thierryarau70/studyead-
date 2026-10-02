@@ -137,8 +137,15 @@ export const useQuizzesStore = defineStore('quizzes', () => {
     try {
       if (process.client) {
         const { $api } = useNuxtApp();
-        const res: any = await $api('/quizzes/all');
-        const items = res?.data || res;
+        let items: any[] = [];
+        try {
+          const res: any = await $api('/quizzes/all');
+          items = res?.data || res;
+        } catch {
+          const res: any = await $api('/quizzes');
+          items = res?.data || res;
+        }
+
         if (Array.isArray(items) && items.length > 0) {
           for (const item of items) {
             const existingIdx = quizzes.value.findIndex((q) => q.id === item.id);
@@ -167,7 +174,7 @@ export const useQuizzesStore = defineStore('quizzes', () => {
         }
       }
     } catch (err: any) {
-      console.warn('API GET /quizzes/all indisponível, usando cache persistente:', err?.message);
+      console.warn('API GET /quizzes indisponível, usando cache persistente:', err?.message);
     } finally {
       loading.value = false;
     }
@@ -190,18 +197,24 @@ export const useQuizzesStore = defineStore('quizzes', () => {
     if (process.client) {
       try {
         const { $api } = useNuxtApp();
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const validCourseId = data.courseId && uuidRegex.test(data.courseId) ? data.courseId : undefined;
+        const validQuestionIds = (data.questionIds || []).filter((id) => uuidRegex.test(id));
+
         const res: any = await $api('/quizzes', {
           method: 'POST',
           body: {
             title: data.title,
             description: data.description,
+            category: data.category || 'Geral',
             timeLimitMinutes: data.timeLimitMinutes,
             maxAttempts: data.maxAttempts,
-            shuffleQuestions: data.shuffleQuestions || false,
-            shuffleOptions: data.shuffleOptions || false,
+            shuffleQuestions: Boolean(data.shuffleQuestions),
+            shuffleOptions: Boolean(data.shuffleOptions),
             showAnswersAfter: data.showAnswersAfter || 'submission',
-            questionIds: data.questionIds || [],
-            courseId: data.courseId,
+            isPublished: data.isPublished !== undefined ? Boolean(data.isPublished) : true,
+            questionIds: validQuestionIds,
+            courseId: validCourseId,
           },
         });
         const createdId = res?.data?.id || res?.id;

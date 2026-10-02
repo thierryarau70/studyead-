@@ -378,6 +378,8 @@ export class CoursesService {
       throw new BadRequestException('Já existe um curso com este slug');
     }
 
+    const isPublished = Boolean(input.isPublished);
+
     return this.prisma.course.create({
       data: {
         tenantId,
@@ -385,13 +387,16 @@ export class CoursesService {
         slug,
         description: input.description,
         longDescription: input.longDescription,
-        thumbnailUrl: input.thumbnailUrl,
-        priceCents: input.priceCents,
+        thumbnailUrl: input.thumbnailUrl || null,
+        priceCents: input.priceCents || 0,
         originalPriceCents: input.originalPriceCents,
-        isFree: input.isFree,
+        isFree: Boolean(input.isFree),
+        isPublished,
+        status: isPublished ? 'published' : 'draft',
+        publishedAt: isPublished ? new Date() : null,
         category: input.category,
-        tags: input.tags,
-        sortOrder: input.sortOrder,
+        tags: input.tags || [],
+        sortOrder: input.sortOrder || 0,
       },
     });
   }

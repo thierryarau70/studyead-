@@ -43,10 +43,12 @@ export class CoursesController {
     @Query('category') category?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('all') all?: string,
+    @CurrentUser() user?: JwtPayload,
   ) {
-    // Default tenant for catalog
-    const tenantId = '00000000-0000-0000-0000-000000000001';
-    return this.coursesService.getCourses(tenantId, { search, category, page, limit }, true);
+    const tenantId = user?.tenantId || '00000000-0000-0000-0000-000000000001';
+    const isPublicOnly = all === 'true' ? false : true;
+    return this.coursesService.getCourses(tenantId, { search, category, page, limit }, isPublicOnly);
   }
 
   /**

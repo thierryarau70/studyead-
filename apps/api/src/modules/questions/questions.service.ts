@@ -67,6 +67,7 @@ export class QuestionsService {
               label: true,
               text: true,
               imageUrl: true,
+              isCorrect: true,
               sortOrder: true,
             },
             orderBy: { sortOrder: 'asc' },

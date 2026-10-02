@@ -58,10 +58,12 @@ export const createCourseSchema = z.object({
   slug: z.string().min(3).max(255).optional(),
   description: z.string().max(500).optional().nullable(),
   longDescription: z.string().optional().nullable(),
-  thumbnailUrl: z.string().url('URL inválida').optional().nullable(),
+  thumbnailUrl: z.string().url('URL inválida').optional().nullable().or(z.literal('')),
   priceCents: z.number().int().min(0, 'Preço não pode ser negativo').default(0),
   originalPriceCents: z.number().int().min(0).optional().nullable(),
   isFree: z.boolean().default(false),
+  isPublished: z.boolean().default(false).optional(),
+  status: z.nativeEnum(CourseStatus).optional(),
   category: z.string().max(100).optional().nullable(),
   tags: z.array(z.string()).default([]),
   sortOrder: z.number().int().default(0),
@@ -126,14 +128,14 @@ export const updateLessonContentSchema = createLessonContentSchema.partial();
 export const questionOptionSchema = z.object({
   label: z.string().length(1, 'Label deve ter 1 caractere (ex: A, B, C)'),
   text: z.string().min(1, 'Texto da alternativa é obrigatório'),
-  imageUrl: z.string().url().optional().nullable(),
+  imageUrl: z.string().url().optional().nullable().or(z.literal('')),
   isCorrect: z.boolean().default(false),
   sortOrder: z.number().int().default(0),
 });
 
 export const createQuestionSchema = z.object({
   statement: z.string().min(5, 'Enunciado deve ter pelo menos 5 caracteres'),
-  statementImageUrl: z.string().url().optional().nullable(),
+  statementImageUrl: z.string().url().optional().nullable().or(z.literal('')),
   explanation: z.string().optional().nullable(),
   subject: z.string().min(2, 'Disciplina é obrigatória'),
   topic: z.string().optional().nullable(),
@@ -161,6 +163,7 @@ export const answerQuestionSchema = z.object({
 export const createQuizSchema = z.object({
   title: z.string().min(3).max(255),
   description: z.string().optional().nullable(),
+  category: z.string().optional().nullable(),
   timeLimitMinutes: z.number().int().min(1).default(60),
   maxAttempts: z.number().int().min(0).default(1),
   shuffleQuestions: z.boolean().default(false),
@@ -168,7 +171,8 @@ export const createQuizSchema = z.object({
   showAnswersAfter: z.nativeEnum(QuizShowAnswers).default(QuizShowAnswers.SUBMISSION),
   startsAt: z.string().datetime().optional().nullable(),
   endsAt: z.string().datetime().optional().nullable(),
-  courseId: z.string().uuid().optional().nullable(),
+  isPublished: z.boolean().default(true).optional(),
+  courseId: z.string().uuid().optional().nullable().or(z.literal('')),
   questionIds: z.array(z.string()).default([]),
 });
 
