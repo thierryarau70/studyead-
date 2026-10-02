@@ -54,14 +54,14 @@ export class QuestionsController {
   @UsePipes(new ZodValidationPipe(answerQuestionSchema))
   async answerQuestion(
     @Param('id') questionId: string,
-    @Body('selectedOptionId') selectedOptionId: string,
+    @Body() body: { selectedOptionId: string },
     @CurrentUser() user: JwtPayload,
   ) {
     return this.questionsService.answerQuestion(
       user.tenantId,
       user.sub,
       questionId,
-      selectedOptionId,
+      body.selectedOptionId,
     );
   }
 
