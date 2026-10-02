@@ -1,3 +1,8 @@
+import { fileURLToPath } from 'url'
+import { dirname, resolve } from 'path'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
@@ -21,7 +26,16 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    // When building on Vercel, output to the PROJECT ROOT .vercel/output
+    // so Vercel's Build Output API picks it up automatically
     preset: process.env.VERCEL ? 'vercel' : 'node-server',
+    ...(process.env.VERCEL && {
+      output: {
+        dir: resolve(__dirname, '../../.vercel/output'),
+        serverDir: resolve(__dirname, '../../.vercel/output/functions/__fallback.func'),
+        publicDir: resolve(__dirname, '../../.vercel/output/static'),
+      },
+    }),
   },
 
   app: {

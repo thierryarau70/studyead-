@@ -1,6 +1,5 @@
 {
   "buildCommand": "npm install --include=dev && npm run build:web",
-  "framework": "nuxtjs",
-  "outputDirectory": "apps/web/.vercel/output",
-  "installCommand": "npm install --include=dev"
+  "installCommand": "npm install --include=dev",
+  "framework": null
 }
