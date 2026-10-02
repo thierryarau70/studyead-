@@ -26,9 +26,9 @@ export default defineNuxtPlugin(() => {
         }
       }
 
-      // Attach Authorization Bearer token if user is logged in
+      // Attach Authorization Bearer token if user is logged in (and not a fallback token)
       const token = authStore.token;
-      if (token) {
+      if (token && !token.startsWith('seed-')) {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
@@ -42,9 +42,11 @@ export default defineNuxtPlugin(() => {
     },
     onResponseError({ response }) {
       if (response.status === 401 && authStore.token) {
-        // Token expired or invalid — force logout
-        authStore.logout();
-        navigateTo('/login');
+        // Only force logout if using a real expired JWT, not on fallback token
+        if (!authStore.token.startsWith('seed-')) {
+          authStore.logout();
+          navigateTo('/login');
+        }
       }
     },
   });
