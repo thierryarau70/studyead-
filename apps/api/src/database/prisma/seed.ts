@@ -64,7 +64,29 @@ async function main() {
     },
   });
 
-  console.log(`✅ Admin user seeded: ${admin.email}`);
+  const coordAdmin = await prisma.user.upsert({
+    where: {
+      tenantId_email: {
+        tenantId: tenant.id,
+        email: 'coordenacao@cursinhoalpha.com.br',
+      },
+    },
+    update: {
+      role: UserRole.admin,
+      isActive: true,
+    },
+    create: {
+      tenantId: tenant.id,
+      name: 'Coordenação Geral Alpha',
+      email: 'coordenacao@cursinhoalpha.com.br',
+      passwordHash,
+      role: UserRole.admin,
+      isActive: true,
+      emailVerifiedAt: new Date(),
+    },
+  });
+
+  console.log(`✅ Admin users seeded: ${admin.email}, ${coordAdmin.email}`);
 
   // 3. Create sample Student user
   const studentEmail = 'aluno@cursinhoalpha.com.br';

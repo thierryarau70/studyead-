@@ -22,7 +22,7 @@
         <div class="grid grid-cols-2 gap-2">
           <button
             type="button"
-            @click="fillCredentials('admin@cursinhoalpha.com.br', 'Admin@123456')"
+            @click="fillCredentials('coordenacao@cursinhoalpha.com.br', 'Admin@123456')"
             class="px-2.5 py-1.5 bg-white rounded-lg border border-brand-200 text-brand-700 font-medium hover:bg-brand-100 transition-colors text-left"
           >
             🔑 Administrador

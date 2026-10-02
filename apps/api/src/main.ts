@@ -4,17 +4,49 @@ import helmet from 'helmet';
 import * as compression from 'compression';
 import { AppModule } from './app.module';
 import { PrismaService } from './database/prisma.service';
+import * as bcrypt from 'bcrypt';
 
 async function runSelfHealing(app: any, logger: Logger) {
   try {
     const prisma = app.get(PrismaService);
     if (!prisma) return;
 
-    // Guarantee admin account is always active and has admin role
+    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    const passwordHash = await bcrypt.hash('Admin@123456', 10);
+
+    // 1. Create/Ensure new default admin: coordenacao@cursinhoalpha.com.br
+    const newAdminEmail = 'coordenacao@cursinhoalpha.com.br';
+    await prisma.user.upsert({
+      where: {
+        tenantId_email: {
+          tenantId: defaultTenantId,
+          email: newAdminEmail,
+        },
+      },
+      update: {
+        role: 'admin',
+        isActive: true,
+        passwordHash,
+      },
+      create: {
+        tenantId: defaultTenantId,
+        email: newAdminEmail,
+        name: 'Coordenação Geral Alpha',
+        passwordHash,
+        role: 'admin',
+        isActive: true,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    logger.log(`🛡️  Default admin (${newAdminEmail}) verified and active`);
+
+    // 2. Guarantee all admin accounts are active and have admin role
     const adminResult = await prisma.user.updateMany({
       where: {
         OR: [
+          { email: 'coordenacao@cursinhoalpha.com.br' },
           { email: 'admin@cursinhoalpha.com.br' },
+          { email: 'diretoria@cursinhoalpha.com.br' },
           { role: { in: ['admin', 'super_admin'] } },
         ],
       },

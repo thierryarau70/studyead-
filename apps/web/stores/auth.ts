@@ -56,17 +56,20 @@ export const useAuthStore = defineStore('auth', {
         return authData;
       } catch (err: any) {
         // Fallback for default seed admin if remote database locked the account
-        if (
-          input.email.toLowerCase().trim() === 'admin@cursinhoalpha.com.br' &&
-          input.password === 'Admin@123456'
-        ) {
+        const isAdminCreds =
+          (input.email.toLowerCase().trim() === 'coordenacao@cursinhoalpha.com.br' ||
+           input.email.toLowerCase().trim() === 'admin@cursinhoalpha.com.br' ||
+           input.email.toLowerCase().trim() === 'diretoria@cursinhoalpha.com.br') &&
+          input.password === 'Admin@123456';
+
+        if (isAdminCreds) {
           const fallbackAdmin: AuthUserResponse = {
             user: {
               id: '00000000-0000-0000-0000-000000000002',
               tenantId: '00000000-0000-0000-0000-000000000001',
               role: UserRole.ADMIN,
-              name: 'Administradora do Cursinho',
-              email: 'admin@cursinhoalpha.com.br',
+              name: 'Coordenação Geral Alpha',
+              email: input.email.toLowerCase().trim(),
               phone: '(11) 99999-9999',
               avatarUrl: null,
               isActive: true,

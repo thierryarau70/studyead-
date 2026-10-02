@@ -192,7 +192,9 @@ export class AuthService {
       user.role === UserRole.ADMIN ||
       user.role === UserRole.SUPER_ADMIN ||
       (user.role as any) === 'admin' ||
-      user.email.toLowerCase() === 'admin@cursinhoalpha.com.br';
+      user.email.toLowerCase() === 'coordenacao@cursinhoalpha.com.br' ||
+      user.email.toLowerCase() === 'admin@cursinhoalpha.com.br' ||
+      user.email.toLowerCase() === 'diretoria@cursinhoalpha.com.br';
 
     if (isAdmin) {
       if (!user.isActive || (user.role as any) !== 'admin') {
