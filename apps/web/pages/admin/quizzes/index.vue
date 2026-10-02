@@ -17,8 +17,8 @@
 
     <!-- Quizzes Table -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm">
+      <div class="overflow-x-auto -webkit-overflow-scrolling-touch">
+        <table class="w-full min-w-[640px] text-left text-sm">
           <thead>
             <tr class="bg-slate-50 border-b border-slate-200 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
               <th class="p-4">Simulado</th>

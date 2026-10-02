@@ -20,15 +20,15 @@
         <span class="text-slate-900 truncate max-w-xs">{{ course.title }}</span>
       </nav>
 
-      <!-- Hero Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+      <!-- Hero Grid: CTA first on mobile (flex-col-reverse), sidebar right on desktop -->
+      <div class="flex flex-col-reverse lg:grid lg:grid-cols-3 gap-8 items-start">
         <!-- Left: Info -->
         <div class="lg:col-span-2 space-y-6">
           <div class="space-y-4">
             <div class="flex items-center gap-3">
               <span class="px-3 py-1 rounded-md text-xs font-extrabold bg-brand-50 text-brand-700 border border-brand-200">{{ course.category }}</span>
             </div>
-            <h1 class="text-3xl sm:text-4xl font-black text-slate-900 leading-tight">{{ course.title }}</h1>
+            <h1 class="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 leading-tight">{{ course.title }}</h1>
             <p class="text-slate-600 text-sm sm:text-base leading-relaxed">{{ course.description }}</p>
 
             <!-- Metrics -->
@@ -108,8 +108,8 @@
           </div>
         </div>
 
-        <!-- Right: Sidebar -->
-        <div class="sticky top-24 space-y-6">
+        <!-- Right: Sidebar CTA -->
+        <div class="lg:sticky lg:top-24 space-y-6">
           <div class="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden p-6 space-y-5">
             <!-- Thumbnail -->
             <div class="relative aspect-video rounded-2xl overflow-hidden bg-slate-900 group cursor-pointer" @click="gotoFirstLesson">

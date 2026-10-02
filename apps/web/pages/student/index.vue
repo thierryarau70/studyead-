@@ -1,16 +1,16 @@
 <template>
   <div class="space-y-8 max-w-7xl mx-auto pb-16">
     <!-- Header banner -->
-    <div class="p-8 rounded-3xl bg-gradient-to-r from-brand-700 via-brand-600 to-indigo-700 text-white shadow-xl relative overflow-hidden">
+    <div class="p-5 sm:p-8 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-brand-700 via-brand-600 to-indigo-700 text-white shadow-xl relative overflow-hidden">
       <div class="absolute -right-10 -bottom-10 w-80 h-80 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
       <div class="relative z-10 max-w-2xl space-y-2">
         <span class="inline-block px-2.5 py-0.5 rounded-md bg-white/20 text-xs font-semibold backdrop-blur-sm">
           Painel de Estudos
         </span>
-        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">
+        <h1 class="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight">
           Pronto para continuar os estudos, {{ authStore.user?.name?.split(' ')[0] || 'Aluno' }}?
         </h1>
-        <p class="text-brand-100 text-sm">
+        <p class="text-brand-100 text-xs sm:text-sm">
           Acompanhe seus cursos, faça simulados cronometrados e pratique questões comentadas todos os dias.
         </p>
       </div>
