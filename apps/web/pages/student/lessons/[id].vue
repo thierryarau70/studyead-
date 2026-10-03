@@ -86,10 +86,22 @@
     <div class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
       <!-- Left Screen: Video & Tabs -->
       <div class="flex-1 overflow-y-auto space-y-6 p-4 sm:p-6">
+        <!-- Completion toast notification -->
+        <div v-if="completionToast" class="p-3.5 rounded-2xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-200 text-xs font-bold flex items-center justify-between animate-fade-in shadow-lg">
+          <div class="flex items-center gap-2.5">
+            <i class="pi pi-check-circle text-emerald-400 text-base"></i>
+            <span>{{ completionToast }}</span>
+          </div>
+          <button @click="completionToast = ''" class="text-emerald-400 hover:text-white p-1 cursor-pointer">
+            <i class="pi pi-times text-xs"></i>
+          </button>
+        </div>
+
         <!-- Video Player Box -->
         <div class="relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-slate-800 group">
           <iframe
             v-if="activeLesson?.videoUrl && isEmbed"
+            :key="activeLesson.id + '-embed'"
             :src="embedVideoUrl"
             class="w-full h-full border-0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -97,6 +109,7 @@
           ></iframe>
           <video
             v-else
+            :key="activeLesson?.id || 'video-player'"
             ref="videoPlayerRef"
             controls
             :poster="activeLesson?.posterUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&auto=format&fit=crop&q=80'"
@@ -406,6 +419,7 @@ const activeTab = ref('overview');
 const userNotes = ref('');
 const selectedAnswers = ref<Record<string, string>>({});
 const videoPlayerRef = ref<HTMLVideoElement | null>(null);
+const completionToast = ref('');
 
 // Controle do Accordion de Módulos
 const openModules = ref<Record<string, boolean>>({});
@@ -543,10 +557,15 @@ function toggleLessonCompletion(id: string) {
   const idx = completedLessons.value.indexOf(id);
   if (idx > -1) {
     completedLessons.value.splice(idx, 1);
+    completionToast.value = 'Aula desmarcada como concluída.';
   } else {
     completedLessons.value.push(id);
+    completionToast.value = '🎉 Aula concluída com sucesso! Seu progresso geral foi atualizado.';
   }
   persistCompletedLessons();
+  setTimeout(() => {
+    completionToast.value = '';
+  }, 4000);
 }
 
 function toggleActiveLessonCompletion() {
@@ -613,7 +632,7 @@ const embedVideoUrl = computed(() => {
   const rawUrl = activeLesson.value?.videoUrl;
   if (!rawUrl) return '';
 
-  // Formato YouTube watch?v=ID ou youtu.be/ID -> embed/ID
+  // Formato YouTube watch?v=ID ou youtu.be/ID ou shorts/ID -> embed/ID
   if (rawUrl.includes('youtube.com/watch?v=')) {
     const videoId = rawUrl.split('watch?v=')[1]?.split('&')[0];
     return `https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0`;
@@ -622,8 +641,16 @@ const embedVideoUrl = computed(() => {
     const videoId = rawUrl.split('youtu.be/')[1]?.split('?')[0];
     return `https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0`;
   }
+  if (rawUrl.includes('youtube.com/shorts/')) {
+    const videoId = rawUrl.split('youtube.com/shorts/')[1]?.split('?')[0];
+    return `https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0`;
+  }
   if (rawUrl.includes('youtube.com/embed/')) {
     return rawUrl;
+  }
+  if (rawUrl.includes('vimeo.com/')) {
+    const videoId = rawUrl.split('vimeo.com/')[1]?.split('?')[0];
+    return `https://player.vimeo.com/video/${videoId}`;
   }
   return rawUrl;
 });

@@ -5,9 +5,20 @@
         <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Simulados</h1>
         <p class="text-sm text-slate-500">{{ quizzesStore.allQuizzes.length }} simulado(s) · questões vinculadas do banco</p>
       </div>
-      <button @click="showCreateModal = true" class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow-lg shadow-brand-600/25 transition-all flex items-center gap-2 self-start sm:self-auto cursor-pointer">
-        <i class="pi pi-plus"></i> Novo Simulado
-      </button>
+      <div class="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+        <NuxtLink
+          to="/admin/quizzes/create"
+          class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow-lg shadow-brand-600/25 transition-all flex items-center gap-2 cursor-pointer"
+        >
+          <i class="pi pi-bolt"></i> Montar Simulado Completo
+        </NuxtLink>
+        <button
+          @click="showCreateModal = true"
+          class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
+        >
+          <i class="pi pi-plus"></i> Criação Rápida
+        </button>
+      </div>
     </div>
 
     <!-- Feedback toast -->
